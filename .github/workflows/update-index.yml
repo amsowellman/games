@@ -1,0 +1,47 @@
+name: Update Game Index
+on:
+  push:
+    branches: [main]
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Generate index.html
+        run: |
+          python3 << 'EOF'
+          import os
+          games = []
+          for entry in os.listdir('.'):
+              if os.path.isdir(entry) and not entry.startswith('.') and entry != '.github':
+                  if os.path.exists(os.path.join(entry, 'index.html')):
+                      games.append(entry)
+          
+          html = """<!DOCTYPE html>
+          <html><head><title>Game Index</title></head>
+          <body>
+          <h1>Games</h1>
+          <ul>
+          """
+          for game in sorted(games):
+              html += f'<li><a href="{game}/">{game}</a></li>\n'
+          html += """</ul>
+          </body></html>"""
+          
+          with open('index.html', 'w') as f:
+              f.write(html)
+          EOF
+      
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Auto-update game index"
+          git push
