@@ -1,8 +1,177 @@
 <!DOCTYPE html>
-<html><head><title>Game Index</title></head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Games</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Helvetica Neue", sans-serif;
+            background: #fbfbfd;
+            color: #1d1d1f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 80px 20px 40px;
+        }
+
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            background: rgba(251, 251, 253, 0.8);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 700;
+            letter-spacing: -0.005em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #1d1d1f 0%, #6e6e73 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 21px;
+            color: #6e6e73;
+            font-weight: 400;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 18px;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        box-shadow 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            animation: fadeInUp 0.8s ease backwards;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(5) { animation-delay: 0.5s; }
+        .card:nth-child(6) { animation-delay: 0.6s; }
+
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+        }
+
+        .card-thumb {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: rgba(255,255,255,0.9);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .card-body h2 {
+            font-size: 21px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .card-body p {
+            font-size: 14px;
+            color: #6e6e73;
+        }
+
+        .play-badge {
+            display: inline-block;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #0071e3;
+            font-weight: 500;
+        }
+
+        .footer {
+            margin-top: 60px;
+            font-size: 12px;
+            color: #86868b;
+            text-align: center;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 40px; }
+            .hero p { font-size: 17px; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
 <body>
-<h1>Games</h1>
-<ul>
-<li><a href="jelly-jump/">jelly-jump</a></li>
-</ul>
-</body></html>
+    <div class="nav"></div>
+
+    <div class="hero">
+        <h1>Games</h1>
+        <p>A collection of things I've made.</p>
+    </div>
+
+    <div class="grid">
+                <a href="jelly-jump/" class="card">
+            <div class="card-thumb" style="background: linear-gradient(135deg, #667eea, #764ba2);">JJ</div>
+            <div class="card-body">
+                <h2>Jelly Jump</h2>
+                <p>Play now</p>
+                <span class="play-badge">Play &rsaquo;</span>
+            </div>
+        </a>
+              </div>
+
+    <div class="footer">
+        &copy; 2026. All games are made with care.
+    </div>
+</body>
+</html>
