@@ -42,6 +42,10 @@ jobs:
               if os.path.isdir(entry) and not entry.startswith('.') and entry != '.github':
                   if os.path.exists(os.path.join(entry, 'index.html')):
                       display_name = entry.replace('-', ' ').replace('_', ' ').title()
+                      title_file = os.path.join(entry, 'title.txt')
+                      if os.path.exists(title_file):
+                          with open(title_file) as tf:
+                              display_name = tf.read().strip() or display_name
                       thumb = find_thumbnail(entry)
                       games.append((entry, display_name, thumb))
 
