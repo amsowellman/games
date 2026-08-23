@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Max's Birthday Dodgeball Adventure</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a0b2e; font-family:'Comic Sans MS','Chalkboard SE','Segoe UI',sans-serif; touch-action:none; }
+  #game-canvas { position:absolute; inset:0; display:block; }
+  .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20; }
+  .hidden { display:none !important; }
+
+  /* ---------- Title / menus ---------- */
+  .menu-screen { background:radial-gradient(ellipse at 50% 30%, #4a2a7a 0%, #1a0b2e 75%); text-align:center; padding:20px; overflow-y:auto; }
+  .game-title { font-size:clamp(28px,6vw,64px); color:#ffd93d; text-shadow:0 4px 0 #d62828, 0 8px 24px rgba(0,0,0,.6); letter-spacing:2px; line-height:1.1; margin-bottom:6px; animation:titleBounce 2s ease-in-out infinite; }
+  @keyframes titleBounce { 0%,100%{transform:translateY(0) rotate(-1deg)} 50%{transform:translateY(-10px) rotate(1deg)} }
+  .game-subtitle { font-size:clamp(14px,2.5vw,24px); color:#7ee8fa; margin-bottom:24px; text-shadow:0 2px 8px rgba(0,0,0,.5); }
+  .menu-btn { display:block; width:min(320px,80vw); margin:10px auto; padding:14px 24px; font-size:clamp(16px,2.5vw,22px); font-family:inherit; font-weight:bold; color:#fff; background:linear-gradient(180deg,#ff6b6b,#d62828); border:none; border-radius:50px; cursor:pointer; box-shadow:0 5px 0 #8f1d1d, 0 8px 16px rgba(0,0,0,.4); transition:transform .1s, box-shadow .1s; }
+  .menu-btn:hover { transform:scale(1.05); }
+  .menu-btn:active { transform:translateY(4px); box-shadow:0 1px 0 #8f1d1d; }
+  .menu-btn.secondary { background:linear-gradient(180deg,#4ecdc4,#2a9d8f); box-shadow:0 5px 0 #1a6b62, 0 8px 16px rgba(0,0,0,.4); }
+  .menu-btn.secondary:active { box-shadow:0 1px 0 #1a6b62; }
+  .menu-btn.purple { background:linear-gradient(180deg,#a06cd5,#6a3fa0); box-shadow:0 5px 0 #452a6b, 0 8px 16px rgba(0,0,0,.4); }
+  .menu-btn.purple:active { box-shadow:0 1px 0 #452a6b; }
+  .section-label { color:#ffd93d; font-size:clamp(16px,2.5vw,22px); margin:18px 0 8px; text-shadow:0 2px 4px rgba(0,0,0,.5); }
+  .choice-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:8px; }
+  .choice-card { width:min(150px,28vw); padding:12px 8px; border-radius:16px; background:rgba(255,255,255,.08); border:3px solid transparent; cursor:pointer; transition:all .15s; color:#fff; }
+  .choice-card:hover { background:rgba(255,255,255,.16); }
+  .choice-card.selected { border-color:#ffd93d; background:rgba(255,217,61,.15); transform:scale(1.05); }
+  .choice-card .card-emoji { font-size:clamp(36px,6vw,52px); display:block; margin-bottom:6px; }
+  .choice-card .card-name { font-size:clamp(13px,2vw,17px); font-weight:bold; color:#ffd93d; }
+  .choice-card .card-stats { font-size:clamp(10px,1.6vw,12px); color:#cde; margin-top:4px; line-height:1.4; }
+  .choice-card img { width:64px; height:64px; object-fit:cover; border-radius:50%; background:#fff2; }
+  .stars-row { font-size:22px; letter-spacing:4px; margin-top:2px; }
+
+  /* ---------- HUD ---------- */
+  #hud { pointer-events:none; z-index:15; }
+  #hud-top { position:absolute; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:flex-start; padding:12px 16px; }
+  #health-box { background:rgba(0,0,0,.45); border-radius:20px; padding:8px 16px; color:#fff; font-size:clamp(16px,2.5vw,22px); font-weight:bold; display:flex; align-items:center; gap:8px; }
+  #health-bar-outer { width:120px; height:14px; background:#00000088; border-radius:7px; overflow:hidden; }
+  #health-bar-inner { height:100%; background:linear-gradient(90deg,#ff6b6b,#ffd93d); border-radius:7px; transition:width .2s; }
+  #score-box { background:rgba(0,0,0,.45); border-radius:20px; padding:8px 16px; color:#ffd93d; font-size:clamp(16px,2.5vw,22px); font-weight:bold; }
+  #timer-box { background:rgba(0,0,0,.45); border-radius:20px; padding:8px 16px; color:#7ee8fa; font-size:clamp(18px,3vw,26px); font-weight:bold; }
+  #boss-bar-wrap { position:absolute; top:64px; left:50%; transform:translateX(-50%); width:min(500px,80vw); background:rgba(0,0,0,.5); border-radius:12px; padding:6px 12px 10px; text-align:center; }
+  #boss-bar-label { color:#ff9f1c; font-weight:bold; font-size:15px; margin-bottom:4px; }
+  #boss-bar-outer { height:14px; background:#00000088; border-radius:7px; overflow:hidden; }
+  #boss-bar-inner { height:100%; background:linear-gradient(90deg,#d62828,#ff9f1c); transition:width .2s; }
+  #powerup-box { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:8px; }
+  .powerup-slot { width:52px; height:52px; border-radius:12px; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; font-size:28px; border:2px solid rgba(255,255,255,.25); }
+  .powerup-slot.active { border-color:#ffd93d; box-shadow:0 0 12px #ffd93d; animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  #crosshair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:24px; height:24px; }
+  #crosshair::before, #crosshair::after { content:''; position:absolute; background:#fff; box-shadow:0 0 4px #000; }
+  #crosshair::before { left:11px; top:2px; width:2px; height:20px; }
+  #crosshair::after { left:2px; top:11px; width:20px; height:2px; }
+  #crosshair.eagle-eye::before, #crosshair.eagle-eye::after { background:#7ee8fa; box-shadow:0 0 8px #7ee8fa; }
+  #level-banner { position:absolute; top:22%; left:50%; transform:translateX(-50%); font-size:clamp(24px,5vw,44px); color:#ffd93d; text-shadow:0 3px 0 #d62828, 0 6px 16px #000; font-weight:bold; opacity:0; transition:opacity .4s; text-align:center; white-space:nowrap; }
+  #affirmation { position:absolute; top:32%; left:50%; transform:translateX(-50%) scale(.5); font-size:clamp(22px,4.5vw,40px); color:#7ee8fa; text-shadow:0 3px 8px #000; font-weight:bold; opacity:0; transition:all .3s; white-space:nowrap; }
+  #affirmation.show { opacity:1; transform:translateX(-50%) scale(1); }
+  #blues-overlay { position:absolute; inset:0; background:rgba(40,80,220,.55); display:flex; align-items:center; justify-content:center; z-index:18; pointer-events:none; opacity:0; transition:opacity .3s; }
+  #blues-overlay.show { opacity:1; }
+  #blues-overlay span { font-size:clamp(24px,5vw,48px); color:#fff; font-weight:bold; text-shadow:0 3px 8px #000; }
+  #hit-flash { position:absolute; inset:0; pointer-events:none; z-index:17; opacity:0; }
+
+  /* ---------- Touch controls ---------- */
+  .stick-zone { position:absolute; bottom:0; width:45%; height:55%; z-index:16; pointer-events:none; }
+  body.is-mobile .stick-zone { pointer-events:auto; }
+  #stick-left { left:0; }
+  #stick-right { right:0; }
+  .stick-base { position:absolute; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.3); display:none; pointer-events:none; }
+  .stick-nub { position:absolute; width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.45); display:none; pointer-events:none; }
+  /* mobile: always-on joystick silhouette at home position (move stick only) */
+  body.is-mobile .stick-base { display:block; }
+  body.is-mobile .stick-nub { display:block; }
+  #stick-left-base { left:70px; bottom:140px; }
+  #stick-left-nub { left:101px; bottom:171px; }
+  #throw-btn { position:absolute; right:24px; bottom:120px; width:84px; height:84px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #ff9f1c, #d62828); border:3px solid #fff; font-size:36px; z-index:16; display:none; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.5); pointer-events:auto; }
+  body.is-mobile #throw-btn { display:flex; }
+  #powerup-btn { position:absolute; right:32px; bottom:224px; width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #4ecdc4, #2a9d8f); border:3px solid #fff; font-size:30px; z-index:16; display:none; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.5); pointer-events:auto; cursor:pointer; }
+  .powerup-slot.stored { border-color:#7ee8fa; box-shadow:0 0 8px rgba(126,232,250,.6); pointer-events:auto; cursor:pointer; }
+  #pause-btn { position:absolute; top:64px; right:16px; z-index:16; width:44px; height:44px; border-radius:12px; background:rgba(0,0,0,.45); color:#fff; font-size:20px; border:none; pointer-events:auto; cursor:pointer; }
+
+  /* ---------- Cutscenes ---------- */
+  #cutscene { background:#000; z-index:30; }
+  #cutscene-canvas { position:absolute; inset:0; width:100%; height:100%; }
+  #skip-btn, #movie-skip-btn { position:absolute; bottom:24px; right:24px; padding:12px 28px; font-size:18px; font-family:inherit; font-weight:bold; color:#fff; background:rgba(255,255,255,.2); border:2px solid #fff; border-radius:30px; cursor:pointer; z-index:31; }
+  #skip-btn:hover, #movie-skip-btn:hover { background:rgba(255,255,255,.35); }
+  #cutscene-caption { position:absolute; bottom:24px; left:24px; right:140px; color:#fff; font-size:clamp(16px,2.8vw,24px); text-shadow:0 2px 6px #000; z-index:31; }
+
+  /* ---------- Birthday card / ending ---------- */
+  #birthday-card { background:radial-gradient(ellipse at center,#fff8e7 0%,#ffe3ec 60%,#ffc9d9 100%); z-index:35; text-align:center; padding:24px; }
+  #birthday-card h1 { font-size:clamp(30px,6vw,58px); color:#d62828; text-shadow:0 2px 0 #ffd93d; margin-bottom:12px; }
+  #birthday-card p { font-size:clamp(18px,3.2vw,28px); color:#6a3fa0; font-weight:bold; margin-bottom:8px; }
+  #birthday-card .credits { font-size:clamp(12px,2vw,16px); color:#888; margin-top:24px; line-height:1.8; }
+
+  /* ---------- Secret movie easter egg ---------- */
+  #movie-screen { background:#000; z-index:40; }
+  #movie-video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
+  #movie-caption { position:absolute; top:20px; left:24px; right:24px; color:#ffd93d; font-size:clamp(14px,2.4vw,20px); font-weight:bold; text-shadow:0 2px 6px #000; z-index:41; text-align:center; pointer-events:none; }
+
+  /* ---------- Leaderboard + initials entry ---------- */
+  .lb-table { display:flex; flex-direction:column; gap:6px; width:min(480px,92vw); margin:10px 0; }
+  .lb-row { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.08); border-radius:12px; padding:8px 14px; color:#fff; font-size:clamp(14px,2.2vw,18px); border:2px solid transparent; }
+  .lb-row.you { background:rgba(255,217,61,.22); border-color:#ffd93d; }
+  .lb-rank { width:36px; }
+  .lb-init { font-weight:bold; color:#ffd93d; width:60px; letter-spacing:3px; }
+  .lb-score { flex:1; text-align:right; font-weight:bold; }
+  .lb-meta { color:#cde; font-size:12px; width:120px; text-align:right; }
+  .lb-you-tag { font-size:10px; color:#7ee8fa; margin-left:4px; }
+  #initials-slots { display:flex; gap:14px; margin:14px 0 18px; }
+  .lb-slot { width:64px; height:78px; border-radius:14px; background:rgba(255,255,255,.1); border:3px solid #ffd93d; color:#fff; font-size:44px; font-weight:bold; display:flex; align-items:center; justify-content:center; }
+  .lb-slot.filled { background:rgba(255,217,61,.2); }
+  #initials-grid { display:grid; grid-template-columns:repeat(9,1fr); gap:8px; width:min(520px,94vw); margin-bottom:16px; }
+  .lb-letter { aspect-ratio:1; border-radius:10px; border:none; background:rgba(255,255,255,.14); color:#fff; font-size:clamp(16px,3vw,24px); font-weight:bold; cursor:pointer; font-family:inherit; }
+  .lb-letter:hover { background:rgba(255,255,255,.3); }
+  .lb-letter:active { background:#ffd93d; color:#1a0b2e; }
+
+  /* ---------- Gallery ---------- */
+  #gallery-screen { background:radial-gradient(ellipse at 50% 30%, #2a4a3a 0%, #0b1a12 75%); }
+  .gallery-grid { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin:16px 0; }
+  .gallery-item { width:min(200px,40vw); border-radius:12px; overflow:hidden; border:3px solid #ffd93d; background:#000; }
+  .gallery-item img { width:100%; display:block; }
+  .gallery-item .cap { color:#ffd93d; text-align:center; padding:6px; font-size:13px; background:rgba(0,0,0,.6); }
+  .gallery-locked { color:#fff; font-size:clamp(16px,2.5vw,22px); text-align:center; padding:24px; }
+
+  #loading-screen { background:#1a0b2e; z-index:50; }
+  .loader-ball { width:60px; height:60px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #ff6b6b, #d62828); animation:loaderBounce .6s ease-in-out infinite alternate; margin-bottom:18px; }
+  @keyframes loaderBounce { from{transform:translateY(0)} to{transform:translateY(-40px)} }
+  #loading-screen p { color:#ffd93d; font-size:20px; }
+  #mute-btn { position:absolute; top:64px; left:16px; z-index:16; width:44px; height:44px; border-radius:12px; background:rgba(0,0,0,.45); color:#fff; font-size:20px; border:none; pointer-events:auto; cursor:pointer; }
+</style>
+</head>
+<body>
+<canvas id="game-canvas"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="overlay hidden">
+  <div id="hud-top">
+    <div id="health-box">❤️ <div id="health-bar-outer"><div id="health-bar-inner" style="width:100%"></div></div><span id="health-num">100</span></div>
+    <div id="timer-box">60</div>
+    <div id="score-box">⭐ <span id="score-num">0</span></div>
+  </div>
+  <div id="boss-bar-wrap" class="hidden">
+    <div id="boss-bar-label">🐉 DRAGON 🐉</div>
+    <div id="boss-bar-outer"><div id="boss-bar-inner" style="width:100%"></div></div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="level-banner"></div>
+  <div id="affirmation"></div>
+  <div id="powerup-box"></div>
+  <button id="pause-btn">⏸</button>
+  <button id="mute-btn">🔊</button>
+</div>
+<div id="hit-flash"></div>
+<div id="blues-overlay"><span>🎺 You've been hit by the Blues! 🎺</span></div>
+
+<!-- Touch controls -->
+<div id="stick-left" class="stick-zone"><div class="stick-base" id="stick-left-base"></div><div class="stick-nub" id="stick-left-nub"></div></div>
+<button id="throw-btn">🏐</button>
+<button id="powerup-btn">🌈</button>
+
+<!-- Loading -->
+<div id="loading-screen" class="overlay"><div class="loader-ball"></div><p>Loading Max's birthday...</p></div>
+
+<!-- Title -->
+<div id="title-screen" class="overlay menu-screen hidden">
+  <div class="game-title">🏐 Max's Birthday<br>Dodgeball Adventure 🎂</div>
+  <div class="game-subtitle">The zoo animals have gone dodgeball-wild!</div>
+  <button class="menu-btn" id="btn-play">▶ Play</button>
+  <button class="menu-btn secondary" id="btn-levels">🗺 Level Select</button>
+  <button class="menu-btn secondary" id="btn-how">❓ How to Play</button>
+  <button class="menu-btn purple" id="btn-gallery">🖼 Gallery</button>
+  <button class="menu-btn secondary" id="btn-leaderboard">🏆 Leaderboard</button>
+</div>
+
+<!-- How to play -->
+<div id="how-screen" class="overlay menu-screen hidden">
+  <div class="section-label">How to Play</div>
+  <p style="color:#fff; max-width:520px; font-size:clamp(14px,2.2vw,18px); line-height:1.7; margin-bottom:16px;">
+    🖱 <b>Desktop:</b> WASD to move, mouse to look, click to throw.<br>
+    📱 <b>Mobile:</b> left stick to move (auto-aim!), 🏐 button to throw.<br><br>
+    🤾 Dodge the animals' dodgeballs! Throw back to score points.<br>
+    🍕 Pizza heals you. 🍦 Ice cream makes you super fast.<br>
+    🦒🦨 Giraffes and ferrets are worth bonus points (and make a funny sound!).<br>
+    🌈 Grab power-ups, then press SPACE (or tap the power-up button) to unleash them! Survive the zoo, chase them to the mountains, then face... the DRAGON!<br>
+    🏆 Crack the top 10 and put your initials on the leaderboard!
+  </p>
+  <button class="menu-btn secondary" id="btn-how-back">← Back</button>
+</div>
+
+<!-- Setup: avatar + difficulty -->
+<div id="setup-screen" class="overlay menu-screen hidden">
+  <div class="section-label">Choose Your Hero</div>
+  <div class="choice-row" id="avatar-row">
+    <div class="choice-card selected" data-avatar="max"><span class="card-emoji">🧒</span><span class="card-name">Max</span><div class="card-stats">❤️ 100 · All-around<br>Balanced &amp; brave</div></div>
+    <div class="choice-card" data-avatar="honey"><img src="poison_honey.png" alt="Poison Honey"><span class="card-name">Poison Honey</span><div class="card-stats">❤️ 80 · Fast<br>Quick little rascal</div></div>
+    <div class="choice-card" data-avatar="dragon"><span class="card-emoji">🐲</span><span class="card-name">Baby Dragon</span><div class="card-stats">❤️ 120 · Heavy<br>Slow but mighty</div></div>
+  </div>
+  <div class="section-label">Choose Difficulty</div>
+  <div class="choice-row" id="difficulty-row">
+    <div class="choice-card" data-difficulty="story"><span class="card-emoji">📖</span><span class="card-name">Story</span><div class="card-stats">Chill mode<br>Auto-aim · ∞ continues</div></div>
+    <div class="choice-card selected" data-difficulty="easy"><span class="card-emoji">🌼</span><span class="card-name">Easy</span><div class="card-stats">Nice &amp; breezy<br>Auto-aim · ∞ continues</div></div>
+    <div class="choice-card" data-difficulty="medium"><span class="card-emoji">⚡</span><span class="card-name">Medium</span><div class="card-stats">A real tussle<br>3 continues</div></div>
+    <div class="choice-card" data-difficulty="hard"><span class="card-emoji">🔥</span><span class="card-name">Hard</span><div class="card-stats">Dragon-tier<br>No continues!</div></div>
+  </div>
+  <div class="section-label">Controls</div>
+  <div class="choice-row" id="controls-row">
+    <div class="choice-card" data-controls="desktop"><span class="card-emoji">🖥️</span><span class="card-name">Desktop</span><div class="card-stats">WASD + mouse look<br>Click to throw</div></div>
+    <div class="choice-card" data-controls="mobile"><span class="card-emoji">📱</span><span class="card-name">Mobile</span><div class="card-stats">Two thumbsticks<br>🏐 button to throw</div></div>
+  </div>
+  <button class="menu-btn" id="btn-start-game">🎉 Start the Party!</button>
+  <button class="menu-btn secondary" id="btn-setup-back">← Back</button>
+</div>
+
+<!-- Level select -->
+<div id="level-screen" class="overlay menu-screen hidden">
+  <div class="section-label">Pick a Level</div>
+  <button class="menu-btn" id="btn-level-1">🦁 Level 1 — The Zoo <span class="stars-row" id="stars-1"></span></button>
+  <button class="menu-btn secondary" id="btn-level-2">⛰ Level 2 — Mountains <span class="stars-row" id="stars-2"></span></button>
+  <button class="menu-btn purple" id="btn-level-3">🐉 Level 3 — Dragon's Lair <span class="stars-row" id="stars-3"></span></button>
+  <button class="menu-btn secondary" id="btn-level-back">← Back</button>
+</div>
+
+<!-- Gallery -->
+<div id="gallery-screen" class="overlay menu-screen hidden">
+  <div class="section-label">🖼 Character Art Gallery</div>
+  <div id="gallery-content"></div>
+  <button class="menu-btn secondary" id="btn-gallery-back">← Back</button>
+</div>
+
+<!-- Pause -->
+<div id="pause-screen" class="overlay menu-screen hidden">
+  <div class="game-title" style="font-size:clamp(24px,5vw,44px)">⏸ Paused</div>
+  <button class="menu-btn" id="btn-resume">▶ Resume</button>
+  <button class="menu-btn secondary" id="btn-restart-level">🔄 Restart Level</button>
+  <button class="menu-btn purple" id="btn-quit">🏠 Quit to Title</button>
+</div>
+
+<!-- Game over -->
+<div id="gameover-screen" class="overlay menu-screen hidden">
+  <div class="game-title" style="font-size:clamp(26px,5vw,48px)">💥 Bonked!</div>
+  <p id="gameover-text" style="color:#fff; font-size:clamp(16px,2.5vw,22px); margin-bottom:16px;"></p>
+  <button class="menu-btn" id="btn-continue">💪 Continue</button>
+  <button class="menu-btn secondary" id="btn-gameover-restart">🔄 Restart Level</button>
+  <button class="menu-btn purple" id="btn-gameover-quit">🏠 Quit to Title</button>
+</div>
+
+<!-- Level complete -->
+<div id="complete-screen" class="overlay menu-screen hidden">
+  <div class="game-title" style="font-size:clamp(26px,5vw,48px)">🎉 Level Complete!</div>
+  <div id="complete-stars" style="font-size:52px; margin:8px 0;"></div>
+  <p id="complete-text" style="color:#fff; font-size:clamp(16px,2.5vw,22px); margin-bottom:16px;"></p>
+  <button class="menu-btn" id="btn-next-level">➡ Next</button>
+  <button class="menu-btn secondary" id="btn-complete-restart">🔄 Replay Level</button>
+  <button class="menu-btn purple" id="btn-complete-quit">🏠 Quit to Title</button>
+</div>
+
+<!-- Cutscene -->
+<div id="cutscene" class="overlay hidden">
+  <canvas id="cutscene-canvas"></canvas>
+  <div id="cutscene-caption"></div>
+  <button id="skip-btn">Skip ▶▶</button>
+</div>
+
+<!-- Birthday card ending -->
+<div id="birthday-card" class="overlay hidden">
+  <h1>🎂 Happy Birthday, Max! 🎂</h1>
+  <p>Uncle Chris and Daddy love you.</p>
+  <p style="font-size:clamp(14px,2.4vw,20px); color:#d62828;">You defeated the dragon and saved the party!<br>The animals are your friends again. 🦁🐒🦅🐻‍❄️🐭🦨🐉</p>
+  <div class="credits">
+    Max's Birthday Dodgeball Adventure<br>
+    Made with ❤️ for Max's 6th birthday<br>
+    Starring: Max · Poison Honey · Baby Dragon · The Zoo Crew · The Honorable Dragon<br>
+    Music, mayhem &amp; pizza by Venice + Three.js
+  </div>
+  <button class="menu-btn purple" id="btn-card-movie" style="margin-top:24px; display:none;">🎬 Watch Your Birthday Movie!</button>
+  <button class="menu-btn" id="btn-card-done" style="margin-top:24px;">🏠 Back to Title</button>
+</div>
+
+<!-- Secret movie easter egg (beat the dragon on Hard to unlock) -->
+<div id="movie-screen" class="overlay hidden">
+  <video id="movie-video" src="episode-001-final-nosubs_full.mp4" preload="auto" playsinline controls></video>
+  <div id="movie-caption">🎬 Max's Round Table Birthday — Episode 1: The Best Birthday Ever</div>
+  <button id="movie-skip-btn">Skip ▶▶</button>
+</div>
+
+<!-- Leaderboard -->
+<div id="leaderboard-screen" class="overlay menu-screen hidden">
+  <div class="game-title" style="font-size:clamp(24px,5vw,44px)">🏆 Leaderboard</div>
+  <div class="section-label">All-time scores — can you beat the zoo crew?</div>
+  <div id="leaderboard-content"></div>
+  <div id="lb-status" style="color:#7ee8fa; font-size:13px; min-height:18px;"></div>
+  <button class="menu-btn secondary" id="btn-leaderboard-back">← Back</button>
+</div>
+
+<!-- High-score initials entry -->
+<div id="initials-screen" class="overlay menu-screen hidden">
+  <div class="game-title" style="font-size:clamp(24px,5vw,44px)">🏆 High Score!</div>
+  <p id="initials-score" style="color:#7ee8fa; font-size:clamp(16px,2.5vw,22px); margin-bottom:6px;"></p>
+  <div class="section-label">Enter Your Initials</div>
+  <div id="initials-slots">
+    <span class="lb-slot" id="lb-slot-0">?</span><span class="lb-slot" id="lb-slot-1">?</span><span class="lb-slot" id="lb-slot-2">?</span>
+  </div>
+  <div id="initials-grid"></div>
+  <div class="choice-row">
+    <button class="menu-btn secondary" id="btn-initials-back" style="width:130px;">⌫ Delete</button>
+    <button class="menu-btn" id="btn-initials-ok" style="width:190px;">✓ Save Score</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ============================================================================
+// AUDIO — WebAudio synth SFX + mp3 music
+// ============================================================================
+const AudioSys = {
+  ctx: null, musicEl: null, muted: false, currentMusic: null,
+  init() {
+    if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  tone(freq, dur, type='sine', vol=0.2, slideTo=null, delay=0) {
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  },
+  noise(dur, vol=0.2, freq=800, delay=0) {
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime + delay;
+    const len = Math.max(1, (dur * this.ctx.sampleRate) | 0);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+    src.connect(f); f.connect(g); g.connect(this.ctx.destination);
+    src.start(t0);
+  },
+  throwBall() { this.noise(0.18, 0.25, 2400); this.tone(500, 0.15, 'sine', 0.12, 900); },
+  hitEnemy() { this.tone(700, 0.1, 'square', 0.15, 350); this.noise(0.12, 0.2, 1200); },
+  playerHurt() { this.tone(220, 0.3, 'sawtooth', 0.25, 110); this.noise(0.25, 0.3, 500); },
+  fart() { // the classic: wobbling low square
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain(), lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
+    o.type='sawtooth'; o.frequency.setValueAtTime(140, t0); o.frequency.linearRampToValueAtTime(70, t0+0.45);
+    lfo.type='sine'; lfo.frequency.value=28; lg.gain.value=40;
+    lfo.connect(lg); lg.connect(o.frequency);
+    g.gain.setValueAtTime(0.28, t0); g.gain.exponentialRampToValueAtTime(0.001, t0+0.5);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(t0); o.stop(t0+0.55); lfo.start(t0); lfo.stop(t0+0.55);
+  },
+  pickup() { this.tone(660,0.09,'sine',0.2); this.tone(880,0.12,'sine',0.2,null,0.08); },
+  powerup() { [523,659,784,1047].forEach((f,i)=>this.tone(f,0.12,'triangle',0.2,null,i*0.07)); },
+  chime() { [784,988,1175,1568].forEach((f,i)=>this.tone(f,0.25,'sine',0.18,null,i*0.1)); },
+  freeze() { this.tone(1200,0.4,'sine',0.15,300); },
+  flashbang() { this.noise(0.5,0.4,4000); this.tone(2000,0.3,'square',0.1,200); },
+  dragonRoar() { this.tone(90,0.8,'sawtooth',0.35,45); this.noise(0.7,0.3,300); },
+  dragonFire() { this.noise(0.6,0.3,900); this.tone(180,0.5,'sawtooth',0.15,80); },
+  trumpet() { [392,370,349,330].forEach((f,i)=>this.tone(f,0.35,'sawtooth',0.14,null,i*0.28)); },
+  fanfare() { [523,523,523,659,784,1047].forEach((f,i)=>this.tone(f,i===5?0.6:0.15,'triangle',0.22,null,i*0.14)); },
+  boing() { this.tone(300,0.25,'sine',0.2,600); },
+  music(name) {
+    this.stopMusic();
+    const file = name === 'boss' ? 'Dragon_birthday_final_boss.mp3' : 'Birthday_Max_intro.mp3';
+    const el = new Audio(encodeURI(file));
+    el.loop = true; el.volume = 0.45;
+    el.play().catch(()=>{ /* autoplay blocked until first gesture; retried on next click */ });
+    this.musicEl = el; this.currentMusic = name;
+  },
+  stopMusic() { if (this.musicEl) { this.musicEl.pause(); this.musicEl = null; this.currentMusic = null; } },
+  retryMusic() { if (this.musicEl && this.musicEl.paused) this.musicEl.play().catch(()=>{}); },
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this.musicEl) this.musicEl.muted = this.muted;
+    return this.muted;
+  }
+};
+document.addEventListener('pointerdown', () => { AudioSys.init(); AudioSys.retryMusic(); }, { once:false });
+// browsers block autoplay until a gesture — keep retrying on any tap/click/key
+document.addEventListener('keydown', () => AudioSys.retryMusic());
+
+// ============================================================================
+// CONFIG — difficulty, avatars, enemies
+// ============================================================================
+const DIFFICULTY = {
+  story:  { damage:1,  pizzaHeal:25, autoAim:true,  continues:Infinity, enemySpeed:0.7, throwInterval:3.4, maxAttackers:2, dragonPhases:2 },
+  easy:   { damage:1,  pizzaHeal:25, autoAim:true,  continues:Infinity, enemySpeed:0.85, throwInterval:2.8, maxAttackers:3, dragonPhases:2 },
+  medium: { damage:5,  pizzaHeal:15, autoAim:false, continues:3,        enemySpeed:1.0, throwInterval:2.2, maxAttackers:4, dragonPhases:3 },
+  hard:   { damage:10, pizzaHeal:5,  autoAim:false, continues:0,        enemySpeed:1.25, throwInterval:1.7, maxAttackers:6, dragonPhases:4 },
+};
+const AVATARS = {
+  max:    { name:'Max',          health:100, speed:7.0, throwPower:1.0, throwCooldown:0.45, ballSpeed:26, color:0x9aa0a6 },
+  honey:  { name:'Poison Honey', health:80,  speed:9.0, throwPower:0.8, throwCooldown:0.28, ballSpeed:34, color:0x8b6f4e },
+  dragon: { name:'Baby Dragon',  health:120, speed:5.5, throwPower:1.5, throwCooldown:0.65, ballSpeed:20, color:0x52b788 },
+};
+const ENEMY_TYPES = {
+  giraffe:   { hp:2, speed:2.2, throwInterval:3.2, ballSpeed:14, points:150, fart:true,  height:5.2, radius:0.9 },
+  monkey:    { hp:1, speed:4.2, throwInterval:2.4, ballSpeed:15, points:60,  fart:false, height:1.4, radius:0.55 },
+  eagle:     { hp:1, speed:5.0, throwInterval:3.0, ballSpeed:18, points:80,  fart:false, height:1.0, radius:0.5, flying:true },
+  polarbear: { hp:3, speed:1.6, throwInterval:4.0, ballSpeed:22, points:100, fart:false, height:2.6, radius:1.1 },
+  mouse:     { hp:1, speed:3.6, throwInterval:2.8, ballSpeed:13, points:70,  fart:false, height:0.6, radius:0.3 },
+  ferret:    { hp:1, speed:5.2, throwInterval:2.6, ballSpeed:14, points:120, fart:true,  height:0.8, radius:0.35 },
+};
+const MILESTONES = [200, 500, 900, 1400, 2000, 2700, 3500, 4400, 5500, 7000];
+const AFFIRMATIONS = ["Awesome throw!", "You're amazing!", "Keep it up!", "WOW, incredible!", "Super star!", "Unstoppable!", "Birthday legend!", "Bullseye!"];
+const POWERUPS = {
+  triple:    { emoji:'🌈', name:'Rainbow Triple-Throw', dur:12 },
+  banana:    { emoji:'🍌', name:'Banana Peel Slow-Mo',  dur:6 },
+  eagleeye:  { emoji:'🦅', name:'Eagle-Eye Aim',        dur:12 },
+  freeze:    { emoji:'🧊', name:'Polar Bear Freeze',    dur:5 },
+  flashbang: { emoji:'🎊', name:'Confetti Flashbang',   dur:4 },
+};
+
+// ============================================================================
+// PERSISTENCE
+// ============================================================================
+const Save = {
+  data: { stars:{1:0,2:0,3:0}, bestScore:{1:0,2:0,3:0}, galleryUnlocked:false, movieUnlocked:false, myScores:[] },
+  load() { try { const d = JSON.parse(localStorage.getItem('maxDodgeball')); if (d) this.data = Object.assign(this.data, d); } catch(e){} },
+  save() { try { localStorage.setItem('maxDodgeball', JSON.stringify(this.data)); } catch(e){} },
+};
+Save.load();
+
+// ============================================================================
+// LEADERBOARD — all-time (leaderboard.txt in this folder) + this device
+// ============================================================================
+const LB = {
+  allTime: [], loaded: false, online: false,
+  BIN_URL: 'https://extendsclass.com/api/json-storage/bin/ecbdafc', // shared online board (leaderboard.txt = offline fallback)
+  async load() {
+    if (this.loaded) return;
+    this.loaded = true;
+    try {
+      const r = await fetch(this.BIN_URL + '?cb=' + Date.now());
+      if (!r.ok) throw 0;
+      const d = await r.json();
+      if (d && Array.isArray(d.scores)) { this.allTime = d.scores; this.online = true; return; }
+    } catch(e) {}
+    try {
+      const r = await fetch('leaderboard.txt?cb=' + Date.now());
+      if (r.ok) { const d = await r.json(); if (d && Array.isArray(d.scores)) this.allTime = d.scores; }
+    } catch(e) { /* file:// or offline — device scores still work */ }
+  },
+  async submit(entry) {
+    // read latest, append, write back (PUT replaces the whole bin)
+    try {
+      const r = await fetch(this.BIN_URL + '?cb=' + Date.now());
+      const d = r.ok ? await r.json() : { scores: [] };
+      const scores = Array.isArray(d.scores) ? d.scores : [];
+      scores.push(entry);
+      scores.sort((a,b) => b.score - a.score);
+      const resp = await fetch(this.BIN_URL, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scores: scores.slice(0, 50) }) });
+      if (resp.ok) { this.allTime = scores.slice(0, 50); this.online = true; }
+    } catch(e) { /* offline — the entry is still saved on this device */ }
+  },
+  merged() {
+    return [...this.allTime, ...Save.data.myScores]
+      .filter(s => s && typeof s.score === 'number')
+      .sort((a,b) => b.score - a.score)
+      .slice(0, 10);
+  },
+  qualifies(score) {
+    if (score <= 0) return false;
+    const m = this.merged();
+    return m.length < 10 || score > m[m.length-1].score;
+  }
+};
+const LB_DIFF_EMOJI = { story:'📖', easy:'🌼', medium:'⚡', hard:'🔥' };
+function renderLeaderboard(newEntry) {
+  const rows = LB.merged();
+  const el = document.getElementById('leaderboard-content');
+  if (!rows.length) { el.innerHTML = '<div class="gallery-locked">No scores yet — be the first!</div>'; return; }
+  el.innerHTML = '<div class="lb-table">' + rows.map((s, i) =>
+    `<div class="lb-row${s === newEntry ? ' you' : ''}"><span class="lb-rank">${['🥇','🥈','🥉'][i] || (i+1)+'.'}</span><span class="lb-init">${s.initials || '???'}${s.mine ? '<span class="lb-you-tag">YOU</span>' : ''}</span><span class="lb-score">${s.score}</span><span class="lb-meta">${LB_DIFF_EMOJI[s.difficulty] || ''} L${s.level || '?'}${s.date ? ' · ' + s.date : ''}</span></div>`
+  ).join('') + '</div>';
+}
+// --- initials entry (on-screen A-Z picker) ---
+function startInitialsEntry() {
+  G.initEntry = ['', '', ''];
+  document.getElementById('initials-score').textContent = `Score: ${G.pendingEntry.score} · ${LB_DIFF_EMOJI[G.pendingEntry.difficulty]} Level ${G.pendingEntry.level}`;
+  updateInitialSlots();
+  show('initials-screen');
+}
+function updateInitialSlots() {
+  for (let i=0;i<3;i++) {
+    const el = document.getElementById('lb-slot-'+i);
+    el.textContent = G.initEntry[i] || '?';
+    el.classList.toggle('filled', !!G.initEntry[i]);
+  }
+}
+function pushInitialLetter(ch) {
+  const i = G.initEntry.findIndex(c => !c);
+  if (i < 0) return;
+  G.initEntry[i] = ch;
+  updateInitialSlots();
+}
+function saveInitials() {
+  if (!G.initEntry || G.initEntry.some(c => !c)) return;
+  const e = Object.assign({ initials: G.initEntry.join(''), date: new Date().toISOString().slice(0,10), mine: true }, G.pendingEntry);
+  Save.data.myScores.push(e);
+  Save.data.myScores.sort((a,b) => b.score - a.score);
+  Save.data.myScores = Save.data.myScores.slice(0, 20);
+  Save.save();
+  G.initEntry = null; G.pendingEntry = null;
+  AudioSys.fanfare();
+  renderLeaderboard(e);
+  show('leaderboard-screen');
+  // share with the world: submit to the online board (strip the local 'mine' flag)
+  const status = document.getElementById('lb-status');
+  status.textContent = '⏳ Saving to the online board...';
+  LB.submit({ initials: e.initials, score: e.score, level: e.level, difficulty: e.difficulty, date: e.date }).then(() => {
+    renderLeaderboard(e);
+    status.textContent = LB.online ? '🌐 Saved to the online board — everyone can see it!' : '📴 Saved on this device (offline)';
+  });
+}
+// build the A-Z letter grid
+const initialsGrid = document.getElementById('initials-grid');
+for (let i=0;i<26;i++) {
+  const b = document.createElement('button');
+  b.className = 'lb-letter';
+  b.textContent = String.fromCharCode(65+i);
+  b.addEventListener('click', () => { if (G.initEntry) { pushInitialLetter(b.textContent); AudioSys.pickup(); } });
+  initialsGrid.appendChild(b);
+}
+
+// ============================================================================
+// GLOBAL STATE
+// ============================================================================
+const G = {
+  state: 'loading', // loading,title,how,setup,levelSelect,gallery,cutscene,playing,paused,gameover,complete,victory,card,movie,leaderboard,initials
+  avatar: AVATARS.max, avatarKey: 'max',
+  difficulty: DIFFICULTY.easy, difficultyKey: 'easy',
+  level: 1,
+  health: 100, maxHealth: 100,
+  score: 0, levelScore: 0,
+  continuesLeft: Infinity,
+  timeLeft: 60,
+  enemies: [], balls: [], pickups: [], powerupItems: [], bunnies: [], particles: [],
+  activePowerups: {}, // key -> timeLeft
+  storedPowerups: [], // keys collected, waiting for SPACE/tap/button activation
+  milestoneIdx: 0,
+  dragon: null, dragonPhase: 0,
+  paused: false,
+  bluesUntil: 0,
+  speedBoostUntil: 0,
+  spawnTimer: 0, pickupTimer: 0, powerupTimer: 0,
+  isMobile: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
+  cutscene: null,
+  galleryJustUnlocked: false,
+  movieJustUnlocked: false,
+  lbReturn: null, lbPrompted: 0, pendingEntry: null, initEntry: null,
+};
+
+// ============================================================================
+// THREE.JS SETUP
+// ============================================================================
+const canvas = document.getElementById('game-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !G.isMobile });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, G.isMobile ? 1.5 : 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = !G.isMobile;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 500);
+const player = {
+  obj: new THREE.Object3D(),
+  vel: new THREE.Vector3(),
+  yaw: 0, pitch: 0,
+  eyeHeight: 1.6,
+  radius: 0.6,
+};
+player.obj.add(camera);
+camera.position.set(0, player.eyeHeight, 0);
+scene.add(player.obj);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Lights (re-configured per level)
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+scene.add(ambientLight);
+const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.1);
+sunLight.position.set(30, 50, 20);
+sunLight.castShadow = !G.isMobile;
+sunLight.shadow.mapSize.set(1024, 1024);
+sunLight.shadow.camera.left = -60; sunLight.shadow.camera.right = 60;
+sunLight.shadow.camera.top = 60; sunLight.shadow.camera.bottom = -60;
+scene.add(sunLight);
+
+// ============================================================================
+// SHARED MATERIALS / HELPERS
+// ============================================================================
+const MAT = {};
+function mat(color, opts={}) {
+  const key = color + JSON.stringify(opts);
+  if (!MAT[key]) MAT[key] = new THREE.MeshStandardMaterial({ color, roughness:0.75, metalness:0.05, ...opts });
+  return MAT[key];
+}
+function sphere(r, color, opts={}) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 16), mat(color, opts)); m.castShadow = !G.isMobile; return m; }
+function box(w,h,d,color,opts={}) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color,opts)); m.castShadow = !G.isMobile; return m; }
+function cyl(rt,rb,h,color,opts={}) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,16), mat(color,opts)); m.castShadow = !G.isMobile; return m; }
+function cone(r,h,color,opts={}) { const m = new THREE.Mesh(new THREE.ConeGeometry(r,h,16), mat(color,opts)); m.castShadow = !G.isMobile; return m; }
+
+function makeEyes(r, sep, y, z, parent) { // big Pixar eyes
+  for (const s of [-1,1]) {
+    const white = sphere(r, 0xffffff, { roughness:0.3 });
+    white.position.set(s*sep, y, z);
+    const pupil = sphere(r*0.45, 0x1a1a2e, { roughness:0.2 });
+    pupil.position.set(0, 0, -r*0.7);
+    white.add(pupil);
+    parent.add(white);
+  }
+}
+function makePartyHat(color=0x4a9fd8, r=0.22, h=0.5) {
+  const g = new THREE.Group();
+  const c = cone(r, h, color); g.add(c);
+  // polka dots
+  const dotColors = [0xff6b6b, 0xffd93d, 0x6bcb77, 0xff9f1c];
+  for (let i=0;i<6;i++) {
+    const d = sphere(r*0.16, dotColors[i%4]);
+    const t = 0.25 + (i%3)*0.22;
+    const ang = (i*2.4);
+    d.position.set(Math.cos(ang)*r*(1-t)*0.9, -h/2 + h*t, Math.sin(ang)*r*(1-t)*0.9);
+    c.add(d);
+  }
+  const pom = sphere(r*0.3, 0xffffff); pom.position.y = h/2 + r*0.2; c.add(pom);
+  return g;
+}
+function confettiBurst(pos, count=40, colors=[0xff6b6b,0xffd93d,0x6bcb77,0x4ecdc4,0xa06cd5,0xff9f1c]) {
+  for (let i=0;i<count;i++) {
+    const p = box(0.08, 0.08, 0.02, colors[i % colors.length], { emissive: colors[i % colors.length], emissiveIntensity:0.4 });
+    p.position.copy(pos);
+    p.userData.vel = new THREE.Vector3((Math.random()-0.5)*10, Math.random()*9+2, (Math.random()-0.5)*10);
+    p.userData.rot = new THREE.Vector3(Math.random()*8, Math.random()*8, Math.random()*8);
+    p.userData.life = 1.6 + Math.random();
+    scene.add(p);
+    G.particles.push(p);
+  }
+}
+
+// ============================================================================
+// INPUT — keyboard/mouse + touch sticks
+// ============================================================================
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code==='Escape' && G.state==='playing') togglePause();
+  if (e.code==='Space') { e.preventDefault(); if (G.state==='playing' && !G.paused) activateOldestPowerup(); }
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+let pointerLocked = false;
+document.addEventListener('mousedown', () => {
+  AudioSys.init();
+  if (G.state === 'playing' && !G.isMobile && !pointerLocked) canvas.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = document.pointerLockElement === canvas;
+});
+document.addEventListener('mousemove', e => {
+  if (pointerLocked && G.state === 'playing') {
+    player.yaw -= e.movementX * 0.0024;
+    // auto-aim difficulties (Story/Easy): look left/right only — no up/down
+    if (!G.difficulty.autoAim) player.pitch = Math.max(-1.35, Math.min(1.35, player.pitch - e.movementY * 0.0024));
+  }
+});
+document.addEventListener('mousedown', e => {
+  if (G.state === 'playing' && pointerLocked && e.button === 0) throwBall();
+});
+
+// Touch sticks
+const sticks = { left:{id:null,ox:0,oy:0,dx:0,dy:0}, right:{id:null,ox:0,oy:0,dx:0,dy:0} };
+function stickHandlers(zoneId, baseId, nubId, side) {
+  const zone = document.getElementById(zoneId), base = document.getElementById(baseId), nub = document.getElementById(nubId);
+  zone.addEventListener('touchstart', e => {
+    e.preventDefault(); AudioSys.init();
+    const t = e.changedTouches[0];
+    sticks[side].id = t.identifier; sticks[side].ox = t.clientX; sticks[side].oy = t.clientY;
+    // move stick from its home silhouette to the touch point
+    base.style.left = (t.clientX-55)+'px'; base.style.top = (t.clientY-55)+'px';
+    nub.style.left = (t.clientX-24)+'px'; nub.style.top = (t.clientY-24)+'px';
+  }, { passive:false });
+  zone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== sticks[side].id) continue;
+      let dx = t.clientX - sticks[side].ox, dy = t.clientY - sticks[side].oy;
+      const len = Math.hypot(dx,dy), max = 50;
+      if (len > max) { dx *= max/len; dy *= max/len; }
+      sticks[side].dx = dx/max; sticks[side].dy = dy/max;
+      nub.style.left = (sticks[side].ox+dx-24)+'px'; nub.style.top = (sticks[side].oy+dy-24)+'px';
+    }
+  }, { passive:false });
+  const end = e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== sticks[side].id) continue;
+      sticks[side].id = null; sticks[side].dx = sticks[side].dy = 0;
+      // clear inline positions -> stick returns to its home silhouette
+      base.style.left = base.style.top = nub.style.left = nub.style.top = '';
+    }
+  };
+  zone.addEventListener('touchend', end); zone.addEventListener('touchcancel', end);
+}
+stickHandlers('stick-left','stick-left-base','stick-left-nub','left');
+document.getElementById('throw-btn').addEventListener('touchstart', e => { e.preventDefault(); if (G.state==='playing') throwBall(); }, { passive:false });
+document.getElementById('powerup-btn').addEventListener('touchstart', e => { e.preventDefault(); activateOldestPowerup(); }, { passive:false });
+document.getElementById('powerup-btn').addEventListener('click', () => activateOldestPowerup());
+// Control mode — auto-detected, player can override on the setup screen
+function setControlMode(mode) {
+  G.isMobile = mode === 'mobile';
+  document.body.classList.toggle('is-mobile', G.isMobile);
+  document.querySelectorAll('#controls-row .choice-card').forEach(c => c.classList.toggle('selected', c.dataset.controls === mode));
+}
+setControlMode(G.isMobile ? 'mobile' : 'desktop');
+
+// ============================================================================
+// CHARACTER MODELS — procedural Pixar-style (big eyes, round shapes)
+// ============================================================================
+function buildMaxModel() {
+  const g = new THREE.Group();
+  const body = sphere(0.55, 0x9aa0a6); body.scale.set(1, 1.15, 0.85); body.position.y = 1.0; g.add(body); // gray hoodie
+  const pocket = box(0.4, 0.22, 0.1, 0x878d93); pocket.position.set(0, 0.85, -0.48); g.add(pocket);
+  const head = sphere(0.42, 0xffd4b8, { roughness:0.6 }); head.position.y = 1.95; g.add(head);
+  const hair = sphere(0.44, 0x8b5a2b); hair.scale.set(1, 0.75, 1); hair.position.y = 2.12; g.add(hair);
+  makeEyes(0.11, 0.17, 1.98, -0.34, g);
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.025, 8, 12, Math.PI), mat(0x8b4a3a));
+  smile.position.set(0, 1.82, -0.38); smile.rotation.x = Math.PI; g.add(smile);
+  for (const s of [-1,1]) { // arms + legs
+    const arm = cyl(0.09, 0.09, 0.55, 0x9aa0a6); arm.position.set(s*0.62, 1.05, 0); arm.rotation.z = s*0.25; g.add(arm);
+    const leg = cyl(0.11, 0.11, 0.5, 0x4a6fa5); leg.position.set(s*0.2, 0.3, 0); g.add(leg); // denim shorts
+    const shoe = sphere(0.14, 0xffffff); shoe.scale.set(1, 0.6, 1.4); shoe.position.set(s*0.2, 0.05, -0.05); g.add(shoe);
+  }
+  return g;
+}
+function buildPoisonHoneyModel() {
+  const g = new THREE.Group();
+  const body = sphere(0.4, 0x8b6f4e); body.scale.set(1, 1.1, 0.9); body.position.y = 0.55; g.add(body);
+  const belly = sphere(0.3, 0xf5ead6); belly.scale.set(0.8, 0.95, 0.6); belly.position.set(0, 0.5, -0.16); g.add(belly);
+  const head = sphere(0.32, 0x8b6f4e); head.position.y = 1.15; g.add(head);
+  const mask = sphere(0.26, 0xf5ead6); mask.scale.set(0.9, 0.7, 0.7); mask.position.set(0, 1.1, -0.14); g.add(mask);
+  makeEyes(0.1, 0.13, 1.2, -0.26, g);
+  const nose = sphere(0.06, 0xff8fa3); nose.position.set(0, 1.08, -0.32); g.add(nose);
+  for (const s of [-1,1]) {
+    const ear = sphere(0.1, 0x6b5238); ear.position.set(s*0.26, 1.38, 0); g.add(ear);
+    const arm = cyl(0.05, 0.05, 0.3, 0x8b6f4e); arm.position.set(s*0.4, 0.6, 0); arm.rotation.z = s*0.4; g.add(arm);
+  }
+  const tail = cyl(0.06, 0.1, 0.7, 0x8b6f4e); tail.position.set(0, 0.35, 0.45); tail.rotation.x = 1.1; g.add(tail);
+  const hat = makePartyHat(0x4a9fd8, 0.18, 0.42); hat.position.y = 1.48; g.add(hat);
+  return g;
+}
+function buildBabyDragonModel() {
+  const g = new THREE.Group();
+  const body = sphere(0.55, 0x52b788); body.scale.set(1, 1.05, 0.95); body.position.y = 0.85; g.add(body);
+  const belly = sphere(0.4, 0xb7e4c7); belly.scale.set(0.75, 0.9, 0.55); belly.position.set(0, 0.8, -0.25); g.add(belly);
+  const head = sphere(0.42, 0x52b788); head.position.y = 1.7; g.add(head);
+  const snout = sphere(0.2, 0x74c69d); snout.scale.set(0.9, 0.7, 1.1); snout.position.set(0, 1.6, -0.35); g.add(snout);
+  makeEyes(0.12, 0.18, 1.8, -0.32, g);
+  for (const s of [-1,1]) {
+    const horn = cone(0.07, 0.25, 0xffd93d); horn.position.set(s*0.2, 2.05, 0); g.add(horn);
+    const wing = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.7, 4), mat(0x40916c, { side:THREE.DoubleSide }));
+    wing.position.set(s*0.55, 1.15, 0.3); wing.rotation.z = s*0.7; g.add(wing);
+    const arm = cyl(0.08, 0.08, 0.4, 0x52b788); arm.position.set(s*0.55, 0.85, -0.1); arm.rotation.z = s*0.35; g.add(arm);
+    const leg = cyl(0.12, 0.14, 0.4, 0x52b788); leg.position.set(s*0.25, 0.25, 0); g.add(leg);
+  }
+  const tail = cone(0.15, 0.9, 0x52b788); tail.position.set(0, 0.5, 0.65); tail.rotation.x = 1.8; g.add(tail);
+  return g;
+}
+
+// --- Enemies ---
+function buildGiraffe() {
+  const g = new THREE.Group();
+  const body = sphere(0.7, 0xe9c46a); body.scale.set(1, 0.9, 1.3); body.position.y = 2.2; g.add(body);
+  for (let i=0;i<7;i++) { const spot = sphere(0.12+Math.random()*0.08, 0xb0894a); spot.position.set((Math.random()-0.5)*1.1, 2.2+(Math.random()-0.5)*0.8, (Math.random()-0.5)*1.4); g.add(spot); }
+  const neck = cyl(0.18, 0.24, 2.4, 0xe9c46a); neck.position.y = 3.9; g.add(neck);
+  const head = sphere(0.32, 0xe9c46a); head.position.set(0, 5.2, -0.15); g.add(head);
+  const muzzle = box(0.3, 0.22, 0.35, 0xd4a94e); muzzle.position.set(0, 5.1, -0.42); g.add(muzzle);
+  makeEyes(0.09, 0.16, 5.3, -0.35, g);
+  for (const s of [-1,1]) {
+    const oss = cyl(0.035, 0.035, 0.25, 0xb0894a); oss.position.set(s*0.12, 5.5, 0); g.add(oss);
+    const tip = sphere(0.055, 0x6b4a2a); tip.position.set(s*0.12, 5.65, 0); g.add(tip);
+    for (const fb of [-1,1]) { const leg = cyl(0.11, 0.09, 1.8, 0xe9c46a); leg.position.set(s*0.35, 0.9, fb*0.45); g.add(leg); }
+  }
+  const hat = makePartyHat(0xd62828, 0.16, 0.36); hat.position.set(0, 5.42, 0.1); g.add(hat);
+  return g;
+}
+function buildMonkey() {
+  const g = new THREE.Group();
+  const body = sphere(0.32, 0x8b5a2b); body.position.y = 0.55; g.add(body);
+  const belly = sphere(0.22, 0xd4a94e); belly.scale.set(0.8,0.9,0.6); belly.position.set(0,0.52,-0.14); g.add(belly);
+  const head = sphere(0.28, 0x8b5a2b); head.position.y = 1.05; g.add(head);
+  const face = sphere(0.2, 0xd4a94e); face.scale.set(0.9,0.8,0.6); face.position.set(0,1.02,-0.14); g.add(face);
+  makeEyes(0.08, 0.11, 1.1, -0.24, g);
+  for (const s of [-1,1]) {
+    const ear = sphere(0.09, 0xd4a94e); ear.position.set(s*0.28, 1.1, 0); g.add(ear);
+    const arm = cyl(0.05,0.05,0.45,0x8b5a2b); arm.position.set(s*0.35,0.6,0); arm.rotation.z = s*0.5; g.add(arm);
+    const leg = cyl(0.06,0.06,0.35,0x8b5a2b); leg.position.set(s*0.15,0.18,0); g.add(leg);
+  }
+  const tail = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.04, 8, 12, Math.PI*1.3), mat(0x8b5a2b));
+  tail.position.set(0, 0.6, 0.35); tail.rotation.y = Math.PI/2; g.add(tail);
+  const hat = makePartyHat(0x6bcb77, 0.13, 0.3); hat.position.y = 1.32; g.add(hat);
+  return g;
+}
+function buildEagle() {
+  const g = new THREE.Group();
+  const body = sphere(0.3, 0x6b4a2a); body.scale.set(1,1,1.25); body.position.y = 0.4; g.add(body);
+  const head = sphere(0.2, 0xffffff); head.position.set(0, 0.72, -0.22); g.add(head);
+  const beak = cone(0.07, 0.18, 0xffd93d); beak.position.set(0, 0.68, -0.44); beak.rotation.x = -Math.PI/2; g.add(beak);
+  makeEyes(0.06, 0.09, 0.78, -0.36, g);
+  const wings = [];
+  for (const s of [-1,1]) {
+    const wing = box(0.7, 0.05, 0.35, 0x54371f); wing.position.set(s*0.55, 0.45, 0); g.add(wing); wings.push(wing);
+  }
+  g.userData.wings = wings;
+  const tail = box(0.25, 0.04, 0.3, 0xffffff); tail.position.set(0, 0.35, 0.42); g.add(tail);
+  return g;
+}
+function buildPolarBear() {
+  const g = new THREE.Group();
+  const body = sphere(0.85, 0xf8f9fa); body.scale.set(1, 1.05, 1.15); body.position.y = 1.15; g.add(body);
+  const head = sphere(0.42, 0xf8f9fa); head.position.set(0, 2.25, -0.3); g.add(head);
+  const muzzle = sphere(0.18, 0xe8ecef); muzzle.position.set(0, 2.15, -0.65); g.add(muzzle);
+  const nose = sphere(0.07, 0x1a1a2e); nose.position.set(0, 2.2, -0.8); g.add(nose);
+  makeEyes(0.08, 0.17, 2.35, -0.6, g);
+  for (const s of [-1,1]) {
+    const ear = sphere(0.11, 0xf8f9fa); ear.position.set(s*0.3, 2.55, -0.15); g.add(ear);
+    const arm = cyl(0.16, 0.14, 0.8, 0xf8f9fa); arm.position.set(s*0.85, 1.2, 0); arm.rotation.z = s*0.2; g.add(arm);
+    const leg = cyl(0.18, 0.2, 0.5, 0xf8f9fa); leg.position.set(s*0.35, 0.25, 0); g.add(leg);
+  }
+  const hat = makePartyHat(0x4ecdc4, 0.2, 0.45); hat.position.y = 2.62; g.add(hat);
+  return g;
+}
+function buildMouse() {
+  const g = new THREE.Group();
+  const body = sphere(0.18, 0xadb5bd); body.scale.set(1,0.9,1.2); body.position.y = 0.2; g.add(body);
+  const head = sphere(0.14, 0xadb5bd); head.position.set(0, 0.36, -0.16); g.add(head);
+  const nose = sphere(0.035, 0xff8fa3); nose.position.set(0, 0.33, -0.3); g.add(nose);
+  makeEyes(0.045, 0.06, 0.4, -0.26, g);
+  for (const s of [-1,1]) { const ear = sphere(0.07, 0xffc9d9); ear.position.set(s*0.1, 0.48, -0.1); g.add(ear); }
+  const tail = cyl(0.015, 0.015, 0.4, 0xffc9d9); tail.position.set(0, 0.12, 0.3); tail.rotation.x = 1.3; g.add(tail);
+  const hat = makePartyHat(0xffd93d, 0.07, 0.16); hat.position.y = 0.52; g.add(hat);
+  return g;
+}
+function buildFerret() {
+  const g = new THREE.Group();
+  const body = sphere(0.16, 0xe9ecef); body.scale.set(0.9, 0.8, 1.8); body.position.y = 0.22; g.add(body);
+  const stripe = sphere(0.13, 0x6b4a2a); stripe.scale.set(0.7, 0.6, 1.6); stripe.position.set(0, 0.3, 0.05); g.add(stripe);
+  const head = sphere(0.13, 0xe9ecef); head.position.set(0, 0.32, -0.3); g.add(head);
+  const mask = sphere(0.1, 0x6b4a2a); mask.scale.set(0.9, 0.6, 0.7); mask.position.set(0, 0.33, -0.36); g.add(mask);
+  makeEyes(0.04, 0.055, 0.37, -0.4, g);
+  const nose = sphere(0.03, 0xff8fa3); nose.position.set(0, 0.3, -0.44); g.add(nose);
+  const hat = makePartyHat(0xff6b6b, 0.07, 0.16); hat.position.y = 0.46; g.add(hat);
+  return g;
+}
+function buildBunny() {
+  const g = new THREE.Group();
+  const body = sphere(0.22, 0xffffff); body.position.y = 0.28; g.add(body);
+  const head = sphere(0.16, 0xffffff); head.position.set(0, 0.55, -0.08); g.add(head);
+  makeEyes(0.05, 0.07, 0.58, -0.2, g);
+  const nose = sphere(0.03, 0xff8fa3); nose.position.set(0, 0.52, -0.24); g.add(nose);
+  for (const s of [-1,1]) {
+    const ear = sphere(0.06, 0xffffff); ear.scale.set(0.6, 2.2, 0.6); ear.position.set(s*0.08, 0.85, -0.05); g.add(ear);
+    const inner = sphere(0.03, 0xffc9d9); inner.scale.set(0.5, 1.8, 0.5); inner.position.set(0, 0, -0.05); ear.add(inner);
+  }
+  const tail = sphere(0.08, 0xffffff); tail.position.set(0, 0.25, 0.22); g.add(tail);
+  return g;
+}
+function buildDragon() {
+  const g = new THREE.Group();
+  const body = sphere(2.2, 0x40916c); body.scale.set(1, 1.1, 1.3); body.position.y = 3.2; g.add(body);
+  const belly = sphere(1.7, 0xffd93d); belly.scale.set(0.75, 0.95, 0.7); belly.position.set(0, 3.0, -1.0); g.add(belly);
+  const neck = cyl(0.7, 0.9, 2.2, 0x40916c); neck.position.set(0, 5.2, -0.8); neck.rotation.x = 0.35; g.add(neck);
+  const head = sphere(1.0, 0x40916c); head.position.set(0, 6.6, -1.6); g.add(head);
+  const snout = box(0.9, 0.6, 1.1, 0x2d6a4f); snout.position.set(0, 6.4, -2.5); g.add(snout);
+  const jaw = box(0.8, 0.25, 1.0, 0x1b4332); jaw.position.set(0, 6.05, -2.4); g.add(jaw);
+  g.userData.jaw = jaw; g.userData.head = head;
+  makeEyes(0.22, 0.42, 6.9, -2.3, g);
+  for (const s of [-1,1]) {
+    const wing = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3.2, 4), mat(0x1b4332, { side:THREE.DoubleSide }));
+    wing.position.set(s*2.2, 4.5, 0.8); wing.rotation.z = s*0.9; g.add(wing);
+    const arm = cyl(0.3, 0.25, 1.6, 0x40916c); arm.position.set(s*2.1, 3.0, -0.8); arm.rotation.z = s*0.4; g.add(arm);
+    const leg = cyl(0.45, 0.55, 1.6, 0x40916c); leg.position.set(s*1.1, 0.8, 0.3); g.add(leg);
+  }
+  const tail = cone(0.5, 3.5, 0x40916c); tail.position.set(0, 2.2, 3.2); tail.rotation.x = 1.9; g.add(tail);
+  // back spikes
+  for (let i=0;i<5;i++) { const spike = cone(0.2, 0.6, 0xffd93d); spike.position.set(0, 4.6 - i*0.75, 0.9 + i*0.45); spike.rotation.x = 0.5; g.add(spike); }
+  // trumpet (hidden until Blues attack)
+  const trumpet = new THREE.Group();
+  const tube = cyl(0.08, 0.08, 1.0, 0xffd93d, { metalness:0.7, roughness:0.3 }); tube.rotation.x = Math.PI/2; trumpet.add(tube);
+  const bell = cone(0.25, 0.4, 0xffd93d, { metalness:0.7, roughness:0.3 }); bell.position.z = -0.65; bell.rotation.x = -Math.PI/2; trumpet.add(bell);
+  trumpet.position.set(0, 6.3, -3.2);
+  trumpet.visible = false;
+  g.add(trumpet);
+  g.userData.trumpet = trumpet;
+  return g;
+}
+const ENEMY_BUILDERS = { giraffe:buildGiraffe, monkey:buildMonkey, eagle:buildEagle, polarbear:buildPolarBear, mouse:buildMouse, ferret:buildFerret };
+
+// ============================================================================
+// LEVEL ENVIRONMENTS
+// ============================================================================
+let levelGroup = null;
+let obstacles = []; // {x,z,r} circle colliders
+let arenaRadius = 40;
+
+function clearLevel() {
+  if (levelGroup) { scene.remove(levelGroup); levelGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  levelGroup = new THREE.Group();
+  scene.add(levelGroup);
+  obstacles = [];
+  for (const e of G.enemies) scene.remove(e.obj);
+  for (const b of G.balls) scene.remove(b.obj);
+  for (const p of G.pickups) scene.remove(p.obj);
+  for (const p of G.powerupItems) scene.remove(p.obj);
+  for (const b of G.bunnies) scene.remove(b.obj);
+  for (const p of G.particles) scene.remove(p);
+  G.enemies = []; G.balls = []; G.pickups = []; G.powerupItems = []; G.bunnies = []; G.particles = [];
+  G.dragon = null;
+}
+
+function addObstacle(mesh, x, z, r) {
+  mesh.position.set(x, mesh.position.y, z);
+  levelGroup.add(mesh);
+  obstacles.push({ x, z, r });
+}
+
+function buildZooLevel() {
+  clearLevel();
+  arenaRadius = 38;
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.Fog(0x87ceeb, 60, 160);
+  ambientLight.color.set(0xffffff); ambientLight.intensity = 0.75;
+  sunLight.color.set(0xfff5e0); sunLight.intensity = 1.15;
+
+  // ground: green with tan pathways
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(arenaRadius + 12, 48), mat(0x6bcb77, { roughness:0.95 }));
+  ground.rotation.x = -Math.PI/2; ground.receiveShadow = !G.isMobile; levelGroup.add(ground);
+  const path = new THREE.Mesh(new THREE.RingGeometry(6, 10, 48), mat(0xe9c46a, { roughness:0.95 }));
+  path.rotation.x = -Math.PI/2; path.position.y = 0.02; levelGroup.add(path);
+  const plaza = new THREE.Mesh(new THREE.CircleGeometry(6, 32), mat(0xe9c46a, { roughness:0.95 }));
+  plaza.rotation.x = -Math.PI/2; plaza.position.y = 0.02; levelGroup.add(plaza);
+
+  // zoo gate entrance (behind spawn)
+  for (const s of [-1,1]) {
+    const pillar = box(1.2, 6, 1.2, 0x8b5a2b); pillar.position.y = 3; addObstacle(pillar, s*4, 34, 0.9);
+  }
+  const gateTop = box(10, 1.2, 1.4, 0x8b5a2b); gateTop.position.set(0, 6.2, 34); levelGroup.add(gateTop);
+  const sign = box(7, 1.6, 0.3, 0xffd93d); sign.position.set(0, 7.6, 34); levelGroup.add(sign);
+
+  // enclosures: fenced circles around the arena
+  const fenceColors = [0xd62828, 0x4ecdc4, 0xa06cd5, 0xff9f1c];
+  for (let i=0;i<8;i++) {
+    const ang = (i/8) * Math.PI*2 + 0.4;
+    const ex = Math.cos(ang)*30, ez = Math.sin(ang)*30;
+    const base = cyl(4, 4.3, 1.2, 0xadb5bd); base.position.y = 0.6; addObstacle(base, ex, ez, 4.3);
+    const mound = sphere(3.2, [0x8b5a2b, 0x6bcb77, 0xadb5bd][i%3]); mound.scale.y = 0.5; mound.position.y = 1.2; mound.position.x = ex; mound.position.z = ez; levelGroup.add(mound);
+    for (let f=0;f<6;f++) {
+      const fa = (f/6)*Math.PI*2;
+      const post = box(0.18, 1.4, 0.18, fenceColors[i%4]);
+      post.position.set(ex + Math.cos(fa)*4.4, 0.7, ez + Math.sin(fa)*4.4);
+      levelGroup.add(post);
+    }
+  }
+
+  // party decorations: balloons + banners
+  for (let i=0;i<14;i++) {
+    const ang = Math.random()*Math.PI*2, r = 12 + Math.random()*22;
+    const bx = Math.cos(ang)*r, bz = Math.sin(ang)*r;
+    const balloon = sphere(0.4, [0xff6b6b,0xffd93d,0x6bcb77,0x4ecdc4,0xa06cd5][i%5], { roughness:0.3 });
+    balloon.position.set(bx, 3.5 + Math.random()*2, bz);
+    balloon.userData.floatPhase = Math.random()*Math.PI*2; balloon.userData.baseY = balloon.position.y;
+    levelGroup.add(balloon);
+    const string = cyl(0.01, 0.01, 3, 0xffffff); string.position.set(bx, balloon.position.y - 1.7, bz); levelGroup.add(string);
+  }
+  // banner strings between posts
+  for (let i=0;i<6;i++) {
+    const ang = (i/6)*Math.PI*2;
+    const p1 = new THREE.Vector3(Math.cos(ang)*16, 5, Math.sin(ang)*16);
+    const p2 = new THREE.Vector3(Math.cos(ang+0.6)*16, 5, Math.sin(ang+0.6)*16);
+    for (let t=0;t<=10;t++) {
+      const pos = p1.clone().lerp(p2, t/10); pos.y -= Math.sin(t/10*Math.PI)*1.2;
+      const flag = box(0.35, 0.45, 0.03, [0xff6b6b,0xffd93d,0x6bcb77,0x4ecdc4][t%4]);
+      flag.position.copy(pos); levelGroup.add(flag);
+    }
+  }
+  // trees
+  for (let i=0;i<10;i++) {
+    const ang = (i/10)*Math.PI*2 + 0.25;
+    const tx = Math.cos(ang)*44, tz = Math.sin(ang)*44;
+    const trunk = cyl(0.3, 0.4, 3, 0x8b5a2b); trunk.position.set(tx, 1.5, tz); levelGroup.add(trunk);
+    const leaves = sphere(2.2, 0x2d6a4f); leaves.position.set(tx, 4.2, tz); levelGroup.add(leaves);
+  }
+}
+
+function buildMountainLevel() {
+  clearLevel();
+  arenaRadius = 40;
+  scene.background = new THREE.Color(0xa8d8ea);
+  scene.fog = new THREE.Fog(0xa8d8ea, 50, 150);
+  ambientLight.color.set(0xe8f4ff); ambientLight.intensity = 0.65;
+  sunLight.color.set(0xfff0d4); sunLight.intensity = 1.0;
+
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(arenaRadius + 14, 48), mat(0x7a9e6a, { roughness:1 }));
+  ground.rotation.x = -Math.PI/2; ground.receiveShadow = !G.isMobile; levelGroup.add(ground);
+  // dirt trail
+  const trail = new THREE.Mesh(new THREE.RingGeometry(4, 8, 48), mat(0x9c7b54, { roughness:1 }));
+  trail.rotation.x = -Math.PI/2; trail.position.y = 0.02; levelGroup.add(trail);
+
+  // mountain ring
+  for (let i=0;i<9;i++) {
+    const ang = (i/9)*Math.PI*2;
+    const mx = Math.cos(ang)*52, mz = Math.sin(ang)*52;
+    const peak = cone(10 + Math.random()*6, 22 + Math.random()*10, 0x6c757d); peak.position.set(mx, 9, mz); levelGroup.add(peak);
+    const snow = cone(3.5, 7, 0xf8f9fa); snow.position.set(mx, 22 + 2, mz); levelGroup.add(snow);
+  }
+  // rocks (cover)
+  for (let i=0;i<12;i++) {
+    const ang = Math.random()*Math.PI*2, r = 10 + Math.random()*26;
+    const rock = sphere(1 + Math.random()*1.2, 0x8d99ae); rock.scale.y = 0.75;
+    rock.position.y = 0.5; addObstacle(rock, Math.cos(ang)*r, Math.sin(ang)*r, 1.4);
+  }
+  // pine trees
+  for (let i=0;i<14;i++) {
+    const ang = (i/14)*Math.PI*2 + 0.15, r = 18 + Math.random()*20;
+    const tx = Math.cos(ang)*r, tz = Math.sin(ang)*r;
+    const trunk = cyl(0.25, 0.35, 2, 0x5a3a1b); trunk.position.set(tx, 1, tz); levelGroup.add(trunk);
+    for (let l=0;l<3;l++) { const leaves = cone(1.6 - l*0.35, 1.8, 0x1b4332); leaves.position.set(tx, 2.2 + l*1.3, tz); levelGroup.add(leaves); }
+    obstacles.push({ x:tx, z:tz, r:0.6 });
+  }
+  // waterfall + pond
+  const cliff = box(10, 12, 3, 0x6c757d); cliff.position.set(0, 6, -42); levelGroup.add(cliff);
+  const falls = box(3, 11, 0.4, 0x74c0fc, { roughness:0.2, metalness:0.1 }); falls.position.set(0, 5.5, -40.2); levelGroup.add(falls);
+  const pond = new THREE.Mesh(new THREE.CircleGeometry(6, 24), mat(0x4dabf7, { roughness:0.15 })); pond.rotation.x = -Math.PI/2; pond.position.set(0, 0.03, -33); levelGroup.add(pond);
+  obstacles.push({ x:0, z:-36, r:5 });
+  // bushes (ferret ambush spots)
+  for (let i=0;i<8;i++) {
+    const ang = Math.random()*Math.PI*2, r = 8 + Math.random()*24;
+    const bush = sphere(0.9, 0x2d6a4f); bush.scale.y = 0.7; bush.position.set(Math.cos(ang)*r, 0.4, Math.sin(ang)*r); levelGroup.add(bush);
+  }
+}
+
+function buildLairLevel() {
+  clearLevel();
+  arenaRadius = 34;
+  scene.background = new THREE.Color(0x1a0b14);
+  scene.fog = new THREE.Fog(0x1a0b14, 30, 90);
+  ambientLight.color.set(0xff9f5a); ambientLight.intensity = 0.35;
+  sunLight.color.set(0xffb36b); sunLight.intensity = 0.5; sunLight.position.set(10, 30, 10);
+
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(arenaRadius + 10, 48), mat(0x3d2b3d, { roughness:0.9 }));
+  ground.rotation.x = -Math.PI/2; ground.receiveShadow = !G.isMobile; levelGroup.add(ground);
+
+  // cavern walls
+  for (let i=0;i<14;i++) {
+    const ang = (i/14)*Math.PI*2;
+    const wx = Math.cos(ang)*44, wz = Math.sin(ang)*44;
+    const rock = sphere(6 + Math.random()*3, 0x2d1f2d); rock.position.set(wx, 2, wz); levelGroup.add(rock);
+  }
+  // stalactites
+  for (let i=0;i<16;i++) {
+    const ang = Math.random()*Math.PI*2, r = Math.random()*36;
+    const st = cone(0.5 + Math.random()*0.5, 3 + Math.random()*4, 0x4a3a4a);
+    st.position.set(Math.cos(ang)*r, 20, Math.sin(ang)*r); st.rotation.x = Math.PI; levelGroup.add(st);
+  }
+  // treasure piles: gold coins + gems
+  for (let i=0;i<10;i++) {
+    const ang = (i/10)*Math.PI*2 + 0.3, r = 12 + Math.random()*18;
+    const tx = Math.cos(ang)*r, tz = Math.sin(ang)*r;
+    const pile = cone(1.6, 1.4, 0x8b6f2a); pile.position.set(tx, 0.7, tz); levelGroup.add(pile);
+    for (let c=0;c<8;c++) {
+      const coin = cyl(0.22, 0.22, 0.06, 0xffd93d, { metalness:0.8, roughness:0.25 });
+      coin.position.set(tx + (Math.random()-0.5)*2.4, 0.6 + Math.random()*1.0, tz + (Math.random()-0.5)*2.4);
+      coin.rotation.set(Math.random(), Math.random(), Math.random());
+      levelGroup.add(coin);
+    }
+    const gem = sphere(0.35, [0xe056a0, 0x4ecdc4, 0xa06cd5][i%3], { roughness:0.1, metalness:0.4, emissive:[0xe056a0, 0x4ecdc4, 0xa06cd5][i%3], emissiveIntensity:0.3 });
+    gem.position.set(tx, 1.6, tz); levelGroup.add(gem);
+    obstacles.push({ x:tx, z:tz, r:1.8 });
+  }
+  // lava cracks (glowing)
+  for (let i=0;i<8;i++) {
+    const ang = Math.random()*Math.PI*2, r = 8 + Math.random()*24;
+    const lava = box(2.5 + Math.random()*2, 0.06, 0.5, 0xff6b1c, { emissive:0xff4400, emissiveIntensity:1.2 });
+    lava.position.set(Math.cos(ang)*r, 0.05, Math.sin(ang)*r); lava.rotation.y = Math.random()*Math.PI; levelGroup.add(lava);
+  }
+  const lavaLight = new THREE.PointLight(0xff6b1c, 1.2, 40); lavaLight.position.set(0, 3, 0); levelGroup.add(lavaLight);
+}
+
+// ============================================================================
+// PICKUPS & POWER-UPS
+// ============================================================================
+function buildPizza() {
+  const g = new THREE.Group();
+  // triangular slice, standing upright so the triangle shape is visible
+  const slice = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.09, 3), mat(0xf4d35e, { emissive:0xf4d35e, emissiveIntensity:0.45 }));
+  slice.rotation.x = Math.PI/2; // triangle faces sideways, point down
+  slice.castShadow = !G.isMobile;
+  g.add(slice);
+  // crust bar along the wide top edge
+  const crust = cyl(0.09, 0.09, 1.05, 0xd4a94e, { emissive:0xd4a94e, emissiveIntensity:0.3 });
+  crust.rotation.z = Math.PI/2; crust.position.y = 0.34; g.add(crust);
+  // pepperonis on the front face
+  for (const [px, py] of [[-0.16, 0.12], [0.16, 0.14], [0, -0.14]]) {
+    const pep = cyl(0.09, 0.09, 0.03, 0xd62828, { emissive:0xd62828, emissiveIntensity:0.35 });
+    pep.rotation.x = Math.PI/2; pep.position.set(px, py, 0.06); g.add(pep);
+  }
+  g.scale.setScalar(1.3);
+  return g;
+}
+function buildIceCream() {
+  const g = new THREE.Group();
+  const coneM = cone(0.22, 0.5, 0xd4a94e); coneM.rotation.x = Math.PI; coneM.position.y = -0.25; g.add(coneM);
+  const scoop = sphere(0.28, 0xffc9d9, { emissive:0xffc9d9, emissiveIntensity:0.5 }); scoop.position.y = 0.12; g.add(scoop);
+  const scoop2 = sphere(0.2, 0xfff5e0, { emissive:0xfff5e0, emissiveIntensity:0.5 }); scoop2.position.y = 0.38; g.add(scoop2);
+  const cherry = sphere(0.07, 0xd62828, { emissive:0xd62828, emissiveIntensity:0.5 }); cherry.position.y = 0.55; g.add(cherry);
+  g.scale.setScalar(1.3);
+  return g;
+}
+function buildPowerupItem(key) {
+  const g = new THREE.Group();
+  const colors = { triple:0xff9f1c, banana:0xffd93d, eagleeye:0x4ecdc4, freeze:0x74c0fc, flashbang:0xe056a0 };
+  const orb = sphere(0.4, colors[key], { emissive: colors[key], emissiveIntensity:0.5, roughness:0.2 });
+  g.add(orb);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.05, 8, 24), mat(0xffffff, { emissive:0xffffff, emissiveIntensity:0.6 }));
+  ring.rotation.x = Math.PI/2; g.add(ring);
+  g.userData.powerKey = key;
+  return g;
+}
+function spawnPickup(kind) {
+  const ang = Math.random()*Math.PI*2, r = 6 + Math.random()*(arenaRadius-12);
+  const obj = kind === 'pizza' ? buildPizza() : buildIceCream();
+  obj.position.set(Math.cos(ang)*r, 1.6, Math.sin(ang)*r);
+  obj.userData = { kind, bobPhase: Math.random()*Math.PI*2 };
+  scene.add(obj); G.pickups.push({ obj, kind });
+}
+function spawnPowerup() {
+  const keys = Object.keys(POWERUPS);
+  const key = keys[(Math.random()*keys.length)|0];
+  const ang = Math.random()*Math.PI*2, r = 6 + Math.random()*(arenaRadius-12);
+  const obj = buildPowerupItem(key);
+  obj.position.set(Math.cos(ang)*r, 1.8, Math.sin(ang)*r);
+  obj.userData.bobPhase = Math.random()*Math.PI*2;
+  scene.add(obj); G.powerupItems.push({ obj, key });
+}
+
+// ============================================================================
+// ENEMIES
+// ============================================================================
+function levelEnemyPool(level) {
+  if (level === 1) return ['ferret','ferret','ferret','monkey','monkey','mouse','giraffe','eagle','polarbear'];
+  if (level === 2) return ['ferret','ferret','ferret','ferret','monkey','monkey','eagle','eagle','mouse','giraffe','polarbear'];
+  return [];
+}
+function spawnEnemy(type) {
+  const cfg = ENEMY_TYPES[type];
+  const obj = ENEMY_BUILDERS[type]();
+  const ang = Math.random()*Math.PI*2;
+  const r = arenaRadius * (0.55 + Math.random()*0.35);
+  obj.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
+  if (cfg.flying) obj.position.y = 6 + Math.random()*4;
+  scene.add(obj);
+  const e = {
+    type, cfg, obj,
+    hp: cfg.hp,
+    throwTimer: 1.5 + Math.random()*cfg.throwInterval,
+    wobblePhase: Math.random()*Math.PI*2,
+    frozenUntil: 0, blindedUntil: 0,
+    hitFlashUntil: 0,
+    orbitDir: Math.random() < 0.5 ? -1 : 1,
+  };
+  G.enemies.push(e);
+  return e;
+}
+function updateEnemies(dt, now) {
+  const pp = player.obj.position;
+  const frozen = G.activePowerups.freeze > 0;
+  for (const e of G.enemies) {
+    if (e.hp <= 0) continue;
+    const obj = e.obj;
+    if (frozen || now < e.frozenUntil) { obj.rotation.y += dt*0.2; continue; }
+    const blinded = now < e.blindedUntil;
+    const speed = e.cfg.speed * G.difficulty.enemySpeed * (blinded ? 0.3 : 1);
+    const toPlayer = new THREE.Vector3().subVectors(pp, obj.position); toPlayer.y = 0;
+    const dist = toPlayer.length();
+    toPlayer.normalize();
+    // orbit at mid range, close in when far, back off when close
+    const tangent = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x).multiplyScalar(e.orbitDir);
+    const move = new THREE.Vector3();
+    if (e.cfg.flying) {
+      obj.position.y = 5.5 + Math.sin(now*0.001 + e.wobblePhase)*2;
+      move.copy(tangent).multiplyScalar(1.2);
+      if (dist > 18) move.add(toPlayer);
+    } else {
+      if (dist > 16) move.add(toPlayer);
+      else if (dist < 7) move.sub(toPlayer);
+      move.add(tangent.multiplyScalar(0.7));
+      // erratic hop for monkeys/ferrets
+      if ((e.type === 'monkey' || e.type === 'ferret') && Math.random() < 0.02) e.orbitDir *= -1;
+      obj.position.y = (e.type === 'monkey' || e.type === 'ferret') ? Math.abs(Math.sin(now*0.006 + e.wobblePhase))*0.35 : 0;
+    }
+    obj.position.addScaledVector(move.normalize(), speed * dt);
+    // keep in arena
+    const d = Math.hypot(obj.position.x, obj.position.z);
+    if (d > arenaRadius) { obj.position.x *= arenaRadius/d; obj.position.z *= arenaRadius/d; }
+    obj.lookAt(pp.x, obj.position.y, pp.z);
+    // wing flap for eagles
+    if (obj.userData.wings) { const f = Math.sin(now*0.02)*0.5; obj.userData.wings[0].rotation.z = f; obj.userData.wings[1].rotation.z = -f; }
+    // hit flash
+    if (now < e.hitFlashUntil) obj.traverse(o => { if (o.material && o.material.emissive !== undefined && !o.userData.origEm) { o.material = o.material.clone(); o.material.emissive = new THREE.Color(0xffffff); o.material.emissiveIntensity = 0.7; o.userData.origEm = true; } });
+    // throw
+    e.throwTimer -= dt * (blinded ? 0.4 : 1);
+    if (e.throwTimer <= 0 && dist < 30) {
+      e.throwTimer = e.cfg.throwInterval / G.difficulty.enemySpeed * (0.8 + Math.random()*0.4);
+      enemyThrow(e);
+    }
+  }
+}
+function enemyThrow(e) {
+  const from = e.obj.position.clone(); from.y += e.cfg.height * 0.75;
+  const target = player.obj.position.clone(); target.y += player.eyeHeight*0.7;
+  // lead the player slightly on higher difficulties
+  if (G.difficultyKey === 'medium' || G.difficultyKey === 'hard') target.addScaledVector(player.vel, 0.25);
+  const dir = target.sub(from).normalize();
+  const isBoulder = e.type === 'polarbear' && G.level >= 2;
+  const ball = sphere(isBoulder ? 0.45 : 0.22, isBoulder ? 0x8d99ae : 0xd62828, { roughness:0.5 });
+  ball.position.copy(from);
+  scene.add(ball);
+  const speed = e.cfg.ballSpeed * (0.9 + G.difficulty.enemySpeed*0.2);
+  G.balls.push({ obj: ball, vel: dir.multiplyScalar(speed), fromEnemy: true, life: 5, spin: Math.random()*10 });
+  AudioSys.throwBall();
+}
+
+// ============================================================================
+// PLAYER THROWING
+// ============================================================================
+let throwCooldown = 0;
+function throwBall() {
+  if (throwCooldown > 0 || G.state !== 'playing' || G.paused) return;
+  throwCooldown = G.avatar.throwCooldown;
+  const isTriple = G.activePowerups.triple > 0;
+  const angles = isTriple ? [-0.18, 0, 0.18] : [0];
+  for (const a of angles) {
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()));
+    // auto-aim on story/easy: snap to nearest enemy within a generous cone
+    if (G.isMobile || G.difficulty.autoAim || G.activePowerups.eagleeye > 0) {
+      const snap = findAutoAimTarget(dir, G.activePowerups.eagleeye > 0 ? 0.5 : 0.35);
+      if (snap) dir.copy(snap);
+    }
+    if (a !== 0) {
+      const rot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), a);
+      dir.applyQuaternion(rot);
+    }
+    const colors = isTriple ? [0xff6b6b, 0x6bcb77, 0x4ecdc4] : [0xff9f1c];
+    const ball = sphere(0.24, colors[0], { roughness:0.4, emissive: colors[0], emissiveIntensity:0.25 });
+    const from = player.obj.position.clone(); from.y += player.eyeHeight - 0.2;
+    from.addScaledVector(dir, 0.8);
+    ball.position.copy(from);
+    scene.add(ball);
+    G.balls.push({ obj: ball, vel: dir.multiplyScalar(G.avatar.ballSpeed), fromEnemy: false, life: 3, power: G.avatar.throwPower });
+  }
+  AudioSys.throwBall();
+}
+function findAutoAimTarget(dir, cone) {
+  let best = null, bestScore = cone;
+  const from = player.obj.position.clone(); from.y += player.eyeHeight;
+  const candidates = [];
+  for (const e of G.enemies) if (e.hp > 0) candidates.push(e.obj.position.clone().setY(e.obj.position.y + e.cfg.height*0.6));
+  if (G.dragon && G.dragon.hp > 0) candidates.push(G.dragon.obj.position.clone().add(new THREE.Vector3(0, 5.5, 1.5)));
+  for (const c of candidates) {
+    const to = c.sub(from).normalize();
+    const dot = to.dot(dir);
+    if (dot > 1 - bestScore) { best = to; bestScore = 1 - dot; }
+  }
+  return best;
+}
+
+// ============================================================================
+// BALL PHYSICS & COLLISIONS
+// ============================================================================
+function updateBalls(dt, now) {
+  const slowMo = G.activePowerups.banana > 0;
+  const pp = player.obj.position.clone(); pp.y += player.eyeHeight*0.6;
+  for (let i = G.balls.length-1; i >= 0; i--) {
+    const b = G.balls[i];
+    const step = b.vel.clone().multiplyScalar(dt * (b.fromEnemy && slowMo ? 0.35 : 1));
+    b.obj.position.add(step);
+    b.obj.rotation.x += b.spin ? b.spin*dt : 8*dt;
+    b.life -= dt;
+    let dead = b.life <= 0 || b.obj.position.y < -1;
+    const bp = b.obj.position;
+    if (!dead && b.fromEnemy) {
+      // hit player?
+      if (bp.distanceTo(pp) < player.radius + 0.35) {
+        damagePlayer(G.difficulty.damage, bp);
+        dead = true;
+      }
+    } else if (!dead) {
+      // hit enemy?
+      for (const e of G.enemies) {
+        if (e.hp <= 0) continue;
+        const ep = e.obj.position.clone(); ep.y += e.cfg.height*0.5;
+        if (bp.distanceTo(ep) < e.cfg.radius + 0.5) {
+          hitEnemy(e, b);
+          dead = true;
+          break;
+        }
+      }
+      // hit dragon?
+      if (!dead && G.dragon && G.dragon.hp > 0) {
+        const dp = G.dragon.obj.position.clone(); dp.y += 4.5;
+        if (bp.distanceTo(dp) < 3.4) { hitDragon(b); dead = true; }
+      }
+    }
+    if (dead) {
+      scene.remove(b.obj);
+      G.balls.splice(i, 1);
+    }
+  }
+}
+function hitEnemy(e, ball) {
+  e.hp -= ball.power || 1;
+  e.hitFlashUntil = performance.now() + 120;
+  AudioSys.hitEnemy();
+  if (e.hp <= 0) {
+    let pts = e.cfg.points;
+    if (e.cfg.fart) { AudioSys.fart(); }
+    addScore(pts, e.obj.position);
+    confettiBurst(e.obj.position.clone().setY(e.obj.position.y + 1), 25);
+    scene.remove(e.obj);
+    // respawn pressure: survival levels keep waves coming
+    if ((G.level === 1 || G.level === 2) && G.state === 'playing') {
+      setTimeout(() => { if (G.state === 'playing' && G.enemies.filter(x => x.hp > 0).length < G.difficulty.maxAttackers + 2) spawnEnemy(levelEnemyPool(G.level)[(Math.random()*levelEnemyPool(G.level).length)|0]); }, 1800 + Math.random()*2200);
+    }
+  }
+}
+function damagePlayer(amount, fromPos) {
+  if (G.state !== 'playing' || G.paused) return;
+  if (performance.now() < G.bluesUntil) { /* blues already active, still take damage */ }
+  G.health = Math.max(0, G.health - amount);
+  AudioSys.playerHurt();
+  const flash = document.getElementById('hit-flash');
+  const colors = ['rgba(214,40,40,.45)', 'rgba(255,159,28,.45)', 'rgba(160,108,213,.45)'];
+  flash.style.background = colors[(Math.random()*colors.length)|0];
+  flash.style.transition = 'none'; flash.style.opacity = '1';
+  requestAnimationFrame(() => { flash.style.transition = 'opacity .5s'; flash.style.opacity = '0'; });
+  updateHUD();
+  if (G.health <= 0) onPlayerDown();
+}
+
+// ============================================================================
+// DRAGON BOSS
+// ============================================================================
+function startDragonFight() {
+  const obj = buildDragon();
+  obj.position.set(0, 0, -20);
+  scene.add(obj);
+  const maxHp = 30 * (G.difficultyKey === 'hard' ? 1.4 : G.difficultyKey === 'medium' ? 1.15 : 1);
+  G.dragon = {
+    obj, hp: maxHp, maxHp,
+    attackTimer: 3, phase: 1,
+    trumpetMode: false, trumpetTimer: 0,
+    movePhase: 0,
+    fireballs: [],
+  };
+  document.getElementById('boss-bar-wrap').classList.remove('hidden');
+  AudioSys.dragonRoar();
+}
+function updateDragon(dt, now) {
+  const d = G.dragon;
+  if (!d || d.hp <= 0) return;
+  const phases = G.difficulty.dragonPhases;
+  const newPhase = Math.min(phases, 1 + Math.floor((1 - d.hp/d.maxHp) * phases));
+  if (newPhase !== d.phase) {
+    d.phase = newPhase;
+    AudioSys.dragonRoar();
+    confettiBurst(d.obj.position.clone().add(new THREE.Vector3(0, 7, 0)), 30, [0xff6b1c, 0xffd93d]);
+    showBanner(`The dragon gets serious! Phase ${d.phase}!`, 2);
+  }
+  // sway / dance
+  d.movePhase += dt;
+  d.obj.position.x = Math.sin(d.movePhase * 0.4) * 8;
+  const pp = player.obj.position;
+  d.obj.lookAt(pp.x, 0, pp.z);
+  d.obj.rotateY(Math.PI); // lookAt aims +Z at the player, but the model's face is -Z
+  // jaw idle chomp
+  if (d.obj.userData.jaw) d.obj.userData.jaw.position.y = 6.05 + Math.sin(now*0.004)*0.08;
+
+  // Blues trumpet attack (all difficulties; more often on hard)
+  d.trumpetTimer -= dt;
+  if (!d.trumpetMode && d.trumpetTimer <= 0) {
+    d.trumpetMode = true;
+    d.obj.userData.trumpet.visible = true;
+    d.trumpetModeUntil = now + 4000;
+    AudioSys.trumpet();
+    showBanner('🎺 The dragon plays the BLUES! 🎺', 2);
+  }
+  if (d.trumpetMode) {
+    // dance!
+    d.obj.rotation.z = Math.sin(now*0.008)*0.08;
+    if (Math.random() < dt * 3) fireMusicNote(d);
+    if (now > d.trumpetModeUntil) {
+      d.trumpetMode = false;
+      d.obj.userData.trumpet.visible = false;
+      d.obj.rotation.z = 0;
+      d.trumpetTimer = (G.difficultyKey === 'hard' ? 10 : 16) + Math.random()*6;
+    }
+  }
+  // fire attacks
+  d.attackTimer -= dt;
+  if (d.attackTimer <= 0 && !d.trumpetMode) {
+    const baseInterval = [0, 3.2, 2.4, 1.8, 1.3][Math.min(d.phase, 4)];
+    d.attackTimer = baseInterval * (0.85 + Math.random()*0.3);
+    breatheFire(d);
+  }
+  // update fireballs & notes
+  for (let i = d.fireballs.length-1; i >= 0; i--) {
+    const f = d.fireballs[i];
+    f.obj.position.addScaledVector(f.vel, dt);
+    f.obj.rotation.z += dt*6;
+    f.life -= dt;
+    let dead = f.life <= 0;
+    const fp = f.obj.position;
+    const ppos = player.obj.position.clone(); ppos.y += player.eyeHeight*0.6;
+    if (!dead && fp.distanceTo(ppos) < player.radius + 0.5) {
+      if (f.isNote) {
+        G.bluesUntil = performance.now() + 3000;
+        document.getElementById('blues-overlay').classList.add('show');
+        setTimeout(() => document.getElementById('blues-overlay').classList.remove('show'), 3000);
+        AudioSys.trumpet();
+      } else {
+        damagePlayer(G.difficulty.damage, fp);
+      }
+      dead = true;
+    }
+    if (dead) { scene.remove(f.obj); d.fireballs.splice(i, 1); }
+  }
+}
+function breatheFire(d) {
+  AudioSys.dragonFire();
+  const mouth = d.obj.position.clone().add(new THREE.Vector3(0, 6.3, 0));
+  const dir = new THREE.Vector3(); d.obj.getWorldDirection(dir);
+  mouth.addScaledVector(dir, 3);
+  const pp = player.obj.position.clone(); pp.y += 1;
+  const aim = pp.sub(mouth).normalize();
+  const count = 3 + d.phase * 2;
+  for (let i=0;i<count;i++) {
+    const spread = 0.35 + d.phase*0.08;
+    const v = aim.clone();
+    v.x += (Math.random()-0.5)*spread; v.y += (Math.random()-0.5)*spread*0.5; v.z += (Math.random()-0.5)*spread;
+    v.normalize().multiplyScalar(11 + d.phase*2);
+    const fb = sphere(0.4, 0xff6b1c, { emissive:0xff4400, emissiveIntensity:1.4 });
+    fb.position.copy(mouth);
+    scene.add(fb);
+    d.fireballs.push({ obj: fb, vel: v, life: 4, isNote: false });
+  }
+}
+function fireMusicNote(d) {
+  const mouth = d.obj.position.clone().add(new THREE.Vector3(0, 6.3, 0));
+  const dir = new THREE.Vector3(); d.obj.getWorldDirection(dir); mouth.addScaledVector(dir, 3.2);
+  const pp = player.obj.position.clone(); pp.y += 1.2;
+  const aim = pp.sub(mouth).normalize().multiplyScalar(9);
+  // musical note: blue sphere + stem
+  const note = new THREE.Group();
+  const head = sphere(0.32, 0x4a80e0, { emissive:0x2a5ac8, emissiveIntensity:0.8 }); note.add(head);
+  const stem = box(0.06, 0.7, 0.06, 0x4a80e0, { emissive:0x2a5ac8, emissiveIntensity:0.8 }); stem.position.set(0.28, 0.4, 0); note.add(stem);
+  note.position.copy(mouth);
+  scene.add(note);
+  d.fireballs.push({ obj: note, vel: aim, life: 5, isNote: true });
+}
+function hitDragon(ball) {
+  const d = G.dragon;
+  d.hp = Math.max(0, d.hp - (ball.power || 1));
+  AudioSys.hitEnemy();
+  addScore(75, ball.obj.position);
+  confettiBurst(ball.obj.position, 12, [0xff6b1c, 0xffd93d]);
+  document.getElementById('boss-bar-inner').style.width = (d.hp/d.maxHp*100) + '%';
+  if (d.hp <= 0) onDragonDefeated();
+}
+
+// ============================================================================
+// SCORING / MILESTONES / BUNNIES
+// ============================================================================
+function addScore(pts, pos) {
+  G.score += pts; G.levelScore += pts;
+  updateHUD();
+  if (pos) showFloatingText('+' + pts, pos);
+  if (G.milestoneIdx < MILESTONES.length && G.score >= MILESTONES[G.milestoneIdx]) {
+    G.milestoneIdx++;
+    triggerMilestone();
+  }
+}
+function triggerMilestone() {
+  AudioSys.chime();
+  const el = document.getElementById('affirmation');
+  el.textContent = AFFIRMATIONS[(Math.random()*AFFIRMATIONS.length)|0];
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+  // screen-wide confetti
+  const pp = player.obj.position;
+  for (let i=0;i<3;i++) confettiBurst(new THREE.Vector3(pp.x + (Math.random()-0.5)*8, 3 + Math.random()*3, pp.z + (Math.random()-0.5)*8), 30);
+  spawnBunnies(3);
+}
+function spawnBunnies(n) {
+  for (let i=0;i<n;i++) {
+    const obj = buildBunny();
+    const ang = Math.random()*Math.PI*2;
+    obj.position.set(player.obj.position.x + Math.cos(ang)*6, 0, player.obj.position.z + Math.sin(ang)*6);
+    scene.add(obj);
+    G.bunnies.push({ obj, hopPhase: Math.random()*Math.PI*2, dir: Math.random()*Math.PI*2, until: performance.now() + 8000 });
+  }
+  AudioSys.boing();
+}
+function updateBunnies(dt, now) {
+  for (let i = G.bunnies.length-1; i >= 0; i--) {
+    const b = G.bunnies[i];
+    if (now > b.until) { scene.remove(b.obj); G.bunnies.splice(i,1); continue; }
+    b.hopPhase += dt * 6;
+    b.dir += (Math.random()-0.5) * dt * 3;
+    b.obj.position.y = Math.abs(Math.sin(b.hopPhase)) * 0.5;
+    b.obj.position.x += Math.cos(b.dir) * dt * 2;
+    b.obj.position.z += Math.sin(b.dir) * dt * 2;
+    b.obj.rotation.y = -b.dir;
+  }
+}
+function showFloatingText(text, pos) {
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.cssText = 'position:absolute;color:#ffd93d;font-weight:bold;font-size:22px;text-shadow:0 2px 4px #000;pointer-events:none;z-index:16;transition:all 1s ease-out;';
+  const sp = pos.clone().project(camera);
+  el.style.left = ((sp.x*0.5+0.5)*window.innerWidth) + 'px';
+  el.style.top = ((-sp.y*0.5+0.5)*window.innerHeight) + 'px';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => { el.style.transform = 'translateY(-60px)'; el.style.opacity = '0'; });
+  setTimeout(() => el.remove(), 1100);
+}
+let bannerTimeout = null;
+function showBanner(text, secs) {
+  const el = document.getElementById('level-banner');
+  el.textContent = text;
+  el.style.opacity = '1';
+  if (bannerTimeout) clearTimeout(bannerTimeout);
+  bannerTimeout = setTimeout(() => el.style.opacity = '0', secs*1000);
+}
+
+// ============================================================================
+// HUD
+// ============================================================================
+function updateHUD() {
+  document.getElementById('health-num').textContent = Math.ceil(G.health);
+  document.getElementById('health-bar-inner').style.width = Math.max(0, G.health/G.maxHealth*100) + '%';
+  document.getElementById('score-num').textContent = G.score;
+  const t = document.getElementById('timer-box');
+  if (G.level === 3) { t.textContent = '🐉 BOSS'; }
+  else t.textContent = Math.ceil(G.timeLeft) + 's';
+  // power-up slots: stored (SPACE / 🌈 button / tap to activate) + active
+  const box = document.getElementById('powerup-box');
+  box.innerHTML = '';
+  for (const key of G.storedPowerups) {
+    const slot = document.createElement('div');
+    slot.className = 'powerup-slot stored';
+    slot.textContent = POWERUPS[key].emoji;
+    slot.title = 'SPACE / tap to activate';
+    slot.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); activatePowerup(key); });
+    box.appendChild(slot);
+  }
+  for (const key of Object.keys(G.activePowerups)) {
+    if (G.activePowerups[key] > 0) {
+      const slot = document.createElement('div');
+      slot.className = 'powerup-slot active';
+      slot.textContent = POWERUPS[key].emoji;
+      box.appendChild(slot);
+    }
+  }
+  document.getElementById('crosshair').classList.toggle('eagle-eye', G.activePowerups.eagleeye > 0);
+  // mobile power-up button: visible only while playing with something stored
+  const pb = document.getElementById('powerup-btn');
+  if (G.isMobile && G.state === 'playing' && G.storedPowerups.length) {
+    pb.style.display = 'flex';
+    pb.textContent = POWERUPS[G.storedPowerups[0]].emoji;
+  } else pb.style.display = 'none';
+}
+
+// ============================================================================
+// PARTICLES
+// ============================================================================
+function updateParticles(dt) {
+  for (let i = G.particles.length-1; i >= 0; i--) {
+    const p = G.particles[i];
+    p.userData.life -= dt;
+    if (p.userData.life <= 0) { scene.remove(p); G.particles.splice(i,1); continue; }
+    p.userData.vel.y -= 12 * dt;
+    p.position.addScaledVector(p.userData.vel, dt);
+    p.rotation.x += p.userData.rot.x * dt; p.rotation.y += p.userData.rot.y * dt;
+    if (p.position.y < 0.05) { p.position.y = 0.05; p.userData.vel.y *= -0.4; p.userData.vel.x *= 0.8; p.userData.vel.z *= 0.8; }
+  }
+}
+
+// ============================================================================
+// PLAYER MOVEMENT
+// ============================================================================
+function updatePlayer(dt) {
+  const speedBoost = performance.now() < G.speedBoostUntil ? 1.6 : 1;
+  const speed = G.avatar.speed * speedBoost;
+  let mx = 0, mz = 0;
+  if (keys['KeyW'] || keys['ArrowUp']) mz -= 1;
+  if (keys['KeyS'] || keys['ArrowDown']) mz += 1;
+  if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
+  if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
+  if (G.isMobile) {
+    mx += sticks.left.dx; mz += sticks.left.dy;
+    // no aim stick on mobile — gently auto-face the nearest threat instead
+    let tt = null, bestD = Infinity;
+    for (const e of G.enemies) if (e.hp > 0) { const d = e.obj.position.distanceToSquared(player.obj.position); if (d < bestD) { bestD = d; tt = e.obj.position; } }
+    if (!tt && G.dragon && G.dragon.hp > 0) tt = G.dragon.obj.position;
+    if (tt) {
+      const ty = Math.atan2(-(tt.x - player.obj.position.x), -(tt.z - player.obj.position.z));
+      let dyaw = ty - player.yaw;
+      while (dyaw > Math.PI) dyaw -= 2*Math.PI;
+      while (dyaw < -Math.PI) dyaw += 2*Math.PI;
+      player.yaw += dyaw * Math.min(1, dt * 3);
+    }
+  }
+  const len = Math.hypot(mx, mz);
+  if (len > 1) { mx /= len; mz /= len; }
+  const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
+  // rotate local move dir by yaw (three.js Y-rotation; forward is -Z at yaw 0)
+  const vx = (mx*cos + mz*sin) * speed;
+  const vz = (-mx*sin + mz*cos) * speed;
+  player.vel.set(vx, 0, vz);
+  player.obj.position.x += vx * dt;
+  player.obj.position.z += vz * dt;
+  // obstacle collision (push out)
+  for (const o of obstacles) {
+    const dx = player.obj.position.x - o.x, dz = player.obj.position.z - o.z;
+    const d = Math.hypot(dx, dz), min = o.r + player.radius;
+    if (d < min && d > 0.001) {
+      player.obj.position.x = o.x + dx/d*min;
+      player.obj.position.z = o.z + dz/d*min;
+    }
+  }
+  // arena bounds
+  const d = Math.hypot(player.obj.position.x, player.obj.position.z);
+  if (d > arenaRadius) {
+    player.obj.position.x *= arenaRadius/d;
+    player.obj.position.z *= arenaRadius/d;
+  }
+  player.obj.rotation.y = player.yaw;
+  camera.rotation.x = player.pitch;
+  // subtle head bob
+  if (len > 0.1) camera.position.y = player.eyeHeight + Math.sin(performance.now()*0.012)*0.05;
+  if (throwCooldown > 0) throwCooldown -= dt;
+}
+
+// ============================================================================
+// PICKUP / POWERUP COLLECTION
+// ============================================================================
+function updatePickups(dt, now) {
+  const pp = player.obj.position;
+  for (let i = G.pickups.length-1; i >= 0; i--) {
+    const p = G.pickups[i];
+    p.obj.position.y = 1.6 + Math.sin(now*0.002 + p.obj.userData.bobPhase)*0.3;
+    p.obj.rotation.y += dt;
+    // horizontal distance only — the pickup floats at ~1.6m, the player pos is at the feet
+    const pdx = p.obj.position.x - pp.x, pdz = p.obj.position.z - pp.z;
+    if (Math.hypot(pdx, pdz) < 1.8) {
+      if (p.kind === 'pizza') {
+        G.health = Math.min(G.maxHealth, G.health + G.difficulty.pizzaHeal);
+        showFloatingText('🍕 +' + G.difficulty.pizzaHeal, p.obj.position);
+        addScore(50, p.obj.position);
+      } else {
+        G.speedBoostUntil = performance.now() + 10000;
+        showFloatingText('🍦 SPEED!', p.obj.position);
+        addScore(100, p.obj.position);
+      }
+      AudioSys.pickup();
+      scene.remove(p.obj); G.pickups.splice(i,1);
+      updateHUD();
+    }
+  }
+  for (let i = G.powerupItems.length-1; i >= 0; i--) {
+    const p = G.powerupItems[i];
+    p.obj.position.y = 1.8 + Math.sin(now*0.002 + p.obj.userData.bobPhase)*0.35;
+    p.obj.rotation.y += dt*1.5;
+    const qdx = p.obj.position.x - pp.x, qdz = p.obj.position.z - pp.z;
+    if (Math.hypot(qdx, qdz) < 1.8) {
+      // store it (max 2) — activate later with SPACE / 🌈 button / tapping the slot
+      if (G.storedPowerups.length < 2) {
+        G.storedPowerups.push(p.key);
+        AudioSys.powerup();
+        showBanner(`${POWERUPS[p.key].emoji} ${POWERUPS[p.key].name} — ${G.isMobile ? 'tap the 🌈 button to use!' : 'press SPACE to use!'}`, 2.5);
+        scene.remove(p.obj); G.powerupItems.splice(i,1);
+        updateHUD();
+      }
+    }
+  }
+  // tick active powerups
+  let changed = false;
+  for (const k of Object.keys(G.activePowerups)) {
+    if (G.activePowerups[k] > 0) { G.activePowerups[k] -= dt; if (G.activePowerups[k] <= 0) changed = true; }
+  }
+  if (changed) updateHUD();
+}
+
+// ============================================================================
+// POWER-UP ACTIVATION — stored power-ups fire on SPACE / 🌈 button / slot tap
+// ============================================================================
+function activatePowerup(key) {
+  if (G.state !== 'playing' || G.paused) return;
+  const i = G.storedPowerups.indexOf(key);
+  if (i < 0) return;
+  G.storedPowerups.splice(i, 1);
+  const now = performance.now();
+  G.activePowerups[key] = POWERUPS[key].dur;
+  AudioSys.powerup();
+  showBanner(`${POWERUPS[key].emoji} ${POWERUPS[key].name}!`, 2);
+  if (key === 'freeze') { for (const e of G.enemies) e.frozenUntil = now + POWERUPS.freeze.dur*1000; AudioSys.freeze(); }
+  if (key === 'flashbang') { for (const e of G.enemies) e.blindedUntil = now + POWERUPS.flashbang.dur*1000; AudioSys.flashbang(); confettiBurst(player.obj.position.clone().setY(3), 60); }
+  updateHUD();
+}
+function activateOldestPowerup() { if (G.storedPowerups.length) activatePowerup(G.storedPowerups[0]); }
+
+// ============================================================================
+// SPAWNING (survival levels)
+// ============================================================================
+function updateSpawning(dt) {
+  if (G.level !== 3) {
+    // enemy waves (survival levels only)
+    const alive = G.enemies.filter(e => e.hp > 0).length;
+    G.spawnTimer -= dt;
+    if (G.spawnTimer <= 0 && alive < G.difficulty.maxAttackers + 1) {
+      G.spawnTimer = 2.5 - G.difficulty.enemySpeed;
+      const pool = levelEnemyPool(G.level);
+      spawnEnemy(pool[(Math.random()*pool.length)|0]);
+    }
+  }
+  // pickups & power-ups spawn on every level, including the boss fight
+  G.pickupTimer -= dt;
+  if (G.pickupTimer <= 0) {
+    G.pickupTimer = 7 + Math.random()*5;
+    if (G.pickups.length < 5) spawnPickup(Math.random() < 0.6 ? 'pizza' : 'icecream');
+  }
+  G.powerupTimer -= dt;
+  if (G.powerupTimer <= 0) {
+    G.powerupTimer = 14 + Math.random()*8;
+    if (G.powerupItems.length < 2) spawnPowerup();
+  }
+}
+
+// ============================================================================
+// GAME FLOW
+// ============================================================================
+function show(id) {
+  for (const s of ['loading-screen','title-screen','how-screen','setup-screen','level-screen','gallery-screen','pause-screen','gameover-screen','complete-screen','cutscene','birthday-card','movie-screen','leaderboard-screen','initials-screen','hud'])
+    document.getElementById(s).classList.add('hidden');
+  if (id) document.getElementById(id).classList.remove('hidden');
+  if (id !== 'hud') document.getElementById('powerup-btn').style.display = 'none';
+}
+function startLevel(level) {
+  G.level = level;
+  G.levelScore = 0;
+  G.maxHealth = G.avatar.health;
+  G.health = G.maxHealth;
+  G.activePowerups = {}; G.storedPowerups = [];
+  G.speedBoostUntil = 0; G.bluesUntil = 0;
+  G.spawnTimer = 1; G.pickupTimer = 3; G.powerupTimer = 8;
+  player.obj.position.set(0, 0, level === 3 ? 20 : 26);
+  player.yaw = 0; player.pitch = 0; // camera looks down -Z by default: face the arena center
+  if (level === 1) { buildZooLevel(); G.timeLeft = 60; }
+  else if (level === 2) { buildMountainLevel(); G.timeLeft = 90; }
+  else { buildLairLevel(); G.timeLeft = 0; startDragonFight(); }
+  document.getElementById('boss-bar-wrap').classList.toggle('hidden', level !== 3);
+  if (level !== 3) document.getElementById('boss-bar-inner').style.width = '100%';
+  // initial enemies
+  if (level !== 3) {
+    const pool = levelEnemyPool(level);
+    const n = Math.min(G.difficulty.maxAttackers, 3);
+    for (let i=0;i<n;i++) spawnEnemy(pool[(Math.random()*pool.length)|0]);
+  }
+  for (let i=0;i<3;i++) spawnPickup(i === 0 ? 'pizza' : (Math.random() < 0.6 ? 'pizza' : 'icecream'));
+  show('hud');
+  G.state = 'playing';
+  G.paused = false;
+  updateHUD();
+  showBanner(level === 1 ? '🦁 Level 1 — The Zoo! Survive 60s!' : level === 2 ? '⛰ Level 2 — Mountains! Survive 90s!' : '🐉 Defeat the Dragon!', 3.5);
+  AudioSys.music(level === 3 ? 'boss' : 'intro');
+}
+function onPlayerDown() {
+  AudioSys.dragonRoar();
+  const hasContinue = G.continuesLeft > 0;
+  if (hasContinue && G.continuesLeft !== Infinity) G.continuesLeft--;
+  document.getElementById('gameover-text').textContent =
+    G.difficultyKey === 'hard' ? 'Hard mode: no continues. Back to the start, brave hero!' :
+    hasContinue ? (G.continuesLeft === Infinity ? 'Unlimited continues — get back in there!' : `${G.continuesLeft} continue(s) left. You've got this!`) :
+    'Out of continues! Restarting the level.';
+  document.getElementById('btn-continue').style.display = hasContinue ? '' : 'none';
+  G.state = 'gameover';
+  show('gameover-screen');
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+function continueGame() {
+  if (G.difficultyKey === 'hard') { G.score = 0; G.milestoneIdx = 0; startLevel(1); return; }
+  G.health = G.maxHealth;
+  G.state = 'playing';
+  show('hud');
+  updateHUD();
+}
+function onLevelComplete() {
+  G.state = 'complete';
+  AudioSys.fanfare();
+  const thresholds = { 1:[300, 700, 1200], 2:[500, 1000, 1700], 3:[400, 700, 1000] }[G.level];
+  const stars = G.levelScore >= thresholds[2] ? 3 : G.levelScore >= thresholds[1] ? 2 : 1;
+  if (stars > Save.data.stars[G.level]) Save.data.stars[G.level] = stars;
+  if (G.levelScore > Save.data.bestScore[G.level]) Save.data.bestScore[G.level] = G.levelScore;
+  // gallery unlock when all 3-starred
+  if (Save.data.stars[1] >= 3 && Save.data.stars[2] >= 3 && Save.data.stars[3] >= 3 && !Save.data.galleryUnlocked) {
+    Save.data.galleryUnlocked = true;
+    G.galleryJustUnlocked = true;
+  }
+  // secret movie unlock: beat the dragon (any difficulty)
+  if (G.level === 3 && !Save.data.movieUnlocked) {
+    Save.data.movieUnlocked = true;
+    G.movieJustUnlocked = true;
+  }
+  Save.save();
+  document.getElementById('complete-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3-stars);
+  document.getElementById('complete-text').textContent = `Score: ${G.levelScore}` + (G.galleryJustUnlocked ? ' — 🖼 GALLERY UNLOCKED!' : '') + (G.movieJustUnlocked ? ' — 🎬 SECRET MOVIE UNLOCKED!' : '');
+  document.getElementById('btn-next-level').textContent = G.level === 3 ? '🎂 Finish the Story' : '➡ Next Level';
+  if (document.pointerLockElement) document.exitPointerLock();
+  // leaderboard: prompt for initials when the total score cracks the top 10
+  G.lbReturn = 'complete-screen';
+  LB.load().then(() => {
+    if (LB.qualifies(G.score) && G.lbPrompted !== G.score) {
+      G.lbPrompted = G.score;
+      G.pendingEntry = { score: G.score, level: G.level, difficulty: G.difficultyKey };
+      startInitialsEntry();
+    } else {
+      show('complete-screen');
+    }
+  });
+}
+function onDragonDefeated() {
+  G.state = 'victory';
+  AudioSys.fanfare();
+  showBanner('The dragon accepts honorable defeat! 🐉🤝', 4);
+  // dragon bows + confetti meteor shower
+  const d = G.dragon;
+  const startTime = performance.now();
+  const victoryAnim = setInterval(() => {
+    const t = (performance.now() - startTime) / 1000;
+    d.obj.rotation.x = Math.min(0.4, t * 0.2); // bow
+    d.obj.position.y = -Math.min(1, t * 0.5);
+    // meteor shower of fiery rainbow confetti from the dragon's mouth
+    if (t > 1.5 && t < 12) {
+      const mouth = d.obj.position.clone().add(new THREE.Vector3(0, 7, 0));
+      const dir = new THREE.Vector3(); d.obj.getWorldDirection(dir); mouth.addScaledVector(dir, -2); // -Z is the face side
+      for (let i=0;i<3;i++) {
+        const p = sphere(0.15, [0xff6b6b,0xffd93d,0x6bcb77,0x4ecdc4,0xa06cd5,0xff9f1c][(Math.random()*6)|0], { emissive:0xff6b1c, emissiveIntensity:0.8 });
+        p.position.copy(mouth);
+        p.userData.vel = new THREE.Vector3((Math.random()-0.5)*16, 8 + Math.random()*8, (Math.random()-0.5)*16);
+        p.userData.rot = new THREE.Vector3(Math.random()*8, Math.random()*8, 0);
+        p.userData.life = 3;
+        scene.add(p); G.particles.push(p);
+      }
+      if (Math.random() < 0.1) AudioSys.chime();
+    }
+    if (t > 3 && !d._friendsArrived) {
+      d._friendsArrived = true;
+      // all the zoo animals appear, celebrating
+      const builders = [buildGiraffe, buildMonkey, buildEagle, buildPolarBear, buildMouse, buildFerret, buildBunny, buildBunny];
+      builders.forEach((b, i) => {
+        const obj = b();
+        const ang = (i/builders.length)*Math.PI*2;
+        obj.position.set(Math.cos(ang)*12, 0, Math.sin(ang)*12);
+        obj.lookAt(0, 0, 0);
+        scene.add(obj);
+        G.particles.push(Object.assign(box(0.01,0.01,0.01,0xffffff), { visible:false, userData:{ vel:new THREE.Vector3(), rot:new THREE.Vector3(), life:0.01 } })); // noop keep array shape
+        G.bunnies.push({ obj, hopPhase: Math.random()*6, dir: ang, until: performance.now() + 60000 }); // reuse bunny hop for celebration
+      });
+    }
+    if (t > 13) {
+      clearInterval(victoryAnim);
+      onLevelComplete();
+    }
+  }, 50);
+}
+
+// ============================================================================
+// CUTSCENES — 2D canvas animated, skippable
+// ============================================================================
+const CUTSCENES = {
+  intro: {
+    caption: "It's Max's birthday party at the zoo! The animals wear their party hats... but a stray dodgeball smashes the gates OPEN!",
+    dur: 14,
+    draw(ctx, w, h, t) {
+      // sky + ground
+      const sky = ctx.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#87ceeb'); sky.addColorStop(1,'#bde0fe'); ctx.fillStyle = sky; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = '#6bcb77'; ctx.fillRect(0, h*0.7, w, h*0.3);
+      // sun
+      ctx.fillStyle = '#ffd93d'; ctx.beginPath(); ctx.arc(w*0.85, h*0.15, 40, 0, 7); ctx.fill();
+      // banner
+      ctx.fillStyle = '#d62828'; ctx.font = `bold ${h*0.06}px sans-serif`; ctx.textAlign = 'center';
+      ctx.fillText('🎂 HAPPY BIRTHDAY MAX! 🎂', w/2, h*0.12);
+      // gates
+      const gateOpen = Math.min(1, Math.max(0, (t-6)/2));
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(w*0.42 - gateOpen*w*0.1, h*0.35, w*0.06, h*0.35);
+      ctx.fillRect(w*0.52 + gateOpen*w*0.1, h*0.35, w*0.06, h*0.35);
+      // animals bouncing
+      const emojis = ['🦒','🐒','🦅','🐻‍❄️','🐭','🦨'];
+      emojis.forEach((e, i) => {
+        const x = w*0.15 + i*w*0.12;
+        const y = h*0.62 + Math.abs(Math.sin(t*3 + i))* -h*0.05;
+        ctx.font = `${h*0.09}px sans-serif`; ctx.fillText(e, x, y);
+        ctx.font = `${h*0.04}px sans-serif`; ctx.fillText('🎉', x + 10, y - h*0.08);
+      });
+      // the stray dodgeball
+      if (t > 3) {
+        const bt = (t-3)/3;
+        const bx = w*0.2 + bt*w*0.35, by = h*0.6 - Math.sin(bt*Math.PI)*h*0.25;
+        ctx.fillStyle = '#d62828'; ctx.beginPath(); ctx.arc(bx, by, h*0.03, 0, 7); ctx.fill();
+        if (t > 6 && t < 6.3) { ctx.fillStyle = '#fff'; ctx.font = `bold ${h*0.1}px sans-serif`; ctx.fillText('💥 CRASH!', w/2, h*0.4); }
+      }
+      if (t > 7) { ctx.fillStyle = '#6a3fa0'; ctx.font = `bold ${h*0.05}px sans-serif`; ctx.fillText('The gates are open! Here they come!', w/2, h*0.85); }
+    }
+  },
+  breakout: {
+    caption: 'The animals pour out of the zoo and stampede toward the mountains! Max grabs his dodgeballs and gives chase!',
+    dur: 12,
+    draw(ctx, w, h, t) {
+      const sky = ctx.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#a8d8ea'); sky.addColorStop(1,'#e8f4ff'); ctx.fillStyle = sky; ctx.fillRect(0,0,w,h);
+      // mountains
+      ctx.fillStyle = '#6c757d';
+      for (let i=0;i<4;i++) { ctx.beginPath(); ctx.moveTo(i*w*0.3 - w*0.1, h*0.7); ctx.lineTo(i*w*0.3 + w*0.08, h*0.25); ctx.lineTo(i*w*0.3 + w*0.26, h*0.7); ctx.fill(); }
+      ctx.fillStyle = '#7a9e6a'; ctx.fillRect(0, h*0.7, w, h*0.3);
+      // stampede
+      const emojis = ['🦒','🐒','🦅','🐻‍❄️','🐭','🦨','🦨','🦨'];
+      emojis.forEach((e, i) => {
+        const x = ((t*0.12 + i*0.09) % 1.2) * w - w*0.1;
+        const y = h*0.68 + Math.abs(Math.sin(t*6 + i*2)) * -h*0.04;
+        ctx.font = `${h*0.08}px sans-serif`; ctx.fillText(e, x, y);
+      });
+      // dust clouds
+      ctx.fillStyle = 'rgba(200,180,140,0.5)';
+      for (let i=0;i<6;i++) { ctx.beginPath(); ctx.arc(((t*0.12 + i*0.09) % 1.2)*w - w*0.16, h*0.7, h*0.03, 0, 7); ctx.fill(); }
+      // Max chasing
+      const mx = ((t*0.12 - 0.15) % 1.2) * w;
+      ctx.font = `${h*0.1}px sans-serif`; ctx.fillText('🧒', mx, h*0.66 + Math.abs(Math.sin(t*6))*-h*0.05);
+      ctx.fillStyle = '#d62828'; ctx.beginPath(); ctx.arc(mx + h*0.05, h*0.6, h*0.02, 0, 7); ctx.fill();
+    }
+  },
+  intoMountain: {
+    caption: 'The animals retreat into a glowing cave. Gold glimmers inside... the ground trembles... something BIG is in there.',
+    dur: 12,
+    draw(ctx, w, h, t) {
+      ctx.fillStyle = '#2b2b3a'; ctx.fillRect(0,0,w,h);
+      // mountain silhouette
+      ctx.fillStyle = '#4a4a5a'; ctx.beginPath(); ctx.moveTo(0,h); ctx.lineTo(w*0.3, h*0.2); ctx.lineTo(w*0.5, h*0.5); ctx.lineTo(w*0.7, h*0.15); ctx.lineTo(w,h); ctx.fill();
+      // cave mouth with warm glow
+      const glow = 0.6 + Math.sin(t*4)*0.2;
+      const grad = ctx.createRadialGradient(w/2, h*0.75, 10, w/2, h*0.75, h*0.3);
+      grad.addColorStop(0, `rgba(255,180,80,${glow})`); grad.addColorStop(1, 'rgba(255,120,20,0)');
+      ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = '#1a0b14'; ctx.beginPath(); ctx.ellipse(w/2, h*0.78, w*0.09, h*0.16, 0, 0, 7); ctx.fill();
+      // gold glimmers
+      for (let i=0;i<8;i++) { const tw = Math.sin(t*5 + i*1.7) > 0.3; if (tw) { ctx.fillStyle = '#ffd93d'; ctx.font = `${h*0.03}px sans-serif`; ctx.fillText('✨', w*0.42 + (i%4)*w*0.05, h*0.72 + ((i/4)|0)*h*0.08); } }
+      // animals entering
+      const emojis = ['🦒','🐒','🐻‍❄️','🦨'];
+      emojis.forEach((e, i) => {
+        const et = Math.min(1, Math.max(0, (t - i*0.8)/4));
+        const x = w*0.15 + et * w*0.32, y = h*0.85 - et*h*0.06;
+        ctx.font = `${h*0.06*(1-et*0.4)}px sans-serif`; ctx.fillText(e, x, y);
+      });
+      // tremble text + growl
+      if (t > 6) {
+        const shake = Math.sin(t*30)*3;
+        ctx.fillStyle = '#ff6b1c'; ctx.font = `bold ${h*0.07}px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText('GRRRRRRR...', w/2 + shake, h*0.4);
+        if (t > 8) { ctx.fillStyle = '#fff'; ctx.font = `${h*0.04}px sans-serif`; ctx.fillText('🐉 A DRAGON?!', w/2, h*0.5); }
+      }
+    }
+  },
+  ending: {
+    caption: 'The dragon smiles. Confetti rains down. Best. Birthday. EVER.',
+    dur: 14,
+    draw(ctx, w, h, t) {
+      const sky = ctx.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#ffd93d'); sky.addColorStop(1,'#ff9f1c'); ctx.fillStyle = sky; ctx.fillRect(0,0,w,h);
+      // confetti rain
+      const cols = ['#ff6b6b','#6bcb77','#4ecdc4','#a06cd5','#fff'];
+      for (let i=0;i<60;i++) {
+        ctx.fillStyle = cols[i%5];
+        const cx = ((i*97) % 100)/100 * w;
+        const cy = ((t*0.15 + i*0.061) % 1) * h;
+        ctx.fillRect(cx, cy, 8, 8);
+      }
+      // dancing animals + dragon
+      const emojis = ['🐉','🦒','🐒','🦅','🐻‍❄️','🐭','🦨','🐰','🐰'];
+      emojis.forEach((e, i) => {
+        const x = w*0.08 + i*w*0.1;
+        const y = h*0.65 + Math.sin(t*5 + i*1.3)*h*0.06;
+        ctx.font = `${i===0 ? h*0.16 : h*0.09}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText(e, x, y);
+      });
+      // Max front and center
+      ctx.font = `${h*0.14}px sans-serif`; ctx.fillText('🧒', w/2, h*0.85);
+      ctx.fillStyle = '#d62828'; ctx.font = `bold ${h*0.07}px sans-serif`;
+      ctx.fillText('HAPPY BIRTHDAY, MAX!', w/2, h*0.15);
+    }
+  }
+};
+function playCutscene(key, onDone) {
+  const cs = CUTSCENES[key];
+  G.state = 'cutscene';
+  G.cutscene = { key, start: performance.now(), onDone };
+  show('cutscene');
+  document.getElementById('cutscene-caption').textContent = cs.caption;
+  const cvs = document.getElementById('cutscene-canvas');
+  cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+  AudioSys.music('intro');
+}
+function updateCutscene(now) {
+  const c = G.cutscene;
+  if (!c) return;
+  const cs = CUTSCENES[c.key];
+  const t = (now - c.start) / 1000;
+  const cvs = document.getElementById('cutscene-canvas');
+  const ctx = cvs.getContext('2d');
+  cs.draw(ctx, cvs.width, cvs.height, t);
+  if (t >= cs.dur) endCutscene();
+}
+function endCutscene() {
+  const c = G.cutscene;
+  if (!c) return;
+  G.cutscene = null;
+  const done = c.onDone;
+  if (done) done();
+}
+document.getElementById('skip-btn').addEventListener('click', () => endCutscene());
+
+// ============================================================================
+// SECRET MOVIE — easter egg for beating the dragon on Hard
+// ============================================================================
+function playMovie(onDone) {
+  G.state = 'movie';
+  AudioSys.stopMusic();
+  show('movie-screen');
+  const v = document.getElementById('movie-video');
+  G._movieOnDone = onDone;
+  v.onended = endMovie;
+  v.onerror = endMovie; // file missing (e.g. not uploaded) — never soft-lock
+  try { v.currentTime = 0; } catch(e) {}
+  v.muted = AudioSys.muted;
+  v.play().catch(() => { /* autoplay blocked — native controls let the player press play */ });
+}
+function endMovie() {
+  const v = document.getElementById('movie-video');
+  v.pause();
+  v.onended = null; v.onerror = null;
+  const cb = G._movieOnDone; G._movieOnDone = null;
+  if (cb) cb(); else showBirthdayCard();
+}
+function showBirthdayCard() {
+  G.state = 'card';
+  AudioSys.stopMusic();
+  document.getElementById('btn-card-movie').style.display = Save.data.movieUnlocked ? '' : 'none';
+  show('birthday-card');
+}
+document.getElementById('movie-skip-btn').addEventListener('click', endMovie);
+document.getElementById('btn-card-movie').addEventListener('click', () => playMovie(showBirthdayCard));
+
+// ============================================================================
+// UI WIRING
+// ============================================================================
+function refreshStars() {
+  for (let i=1;i<=3;i++) {
+    const el = document.getElementById('stars-' + i);
+    const n = Save.data.stars[i] || 0;
+    el.textContent = ' ' + '⭐'.repeat(n) + '☆'.repeat(3-n);
+  }
+}
+function renderGallery() {
+  const el = document.getElementById('gallery-content');
+  if (!Save.data.galleryUnlocked) {
+    el.innerHTML = '<div class="gallery-locked">🔒 Earn 3 stars on every level to unlock the character art gallery!</div>';
+    return;
+  }
+  el.innerHTML = `<div class="gallery-grid">
+    <div class="gallery-item"><img src="Max_character_sheet.png" alt="Max"><div class="cap">Max — the birthday hero</div></div>
+    <div class="gallery-item"><img src="poison_honey_character_sheet.png" alt="Poison Honey"><div class="cap">Poison Honey — Max's own creation</div></div>
+    <div class="gallery-item"><img src="max.png" alt="Max portrait"><div class="cap">Max character study</div></div>
+  </div>`;
+}
+document.getElementById('btn-play').addEventListener('click', () => { AudioSys.init(); show('setup-screen'); });
+document.getElementById('btn-levels').addEventListener('click', () => { AudioSys.init(); refreshStars(); show('level-screen'); });
+document.getElementById('btn-how').addEventListener('click', () => show('how-screen'));
+document.getElementById('btn-how-back').addEventListener('click', () => show('title-screen'));
+document.getElementById('btn-gallery').addEventListener('click', () => { renderGallery(); show('gallery-screen'); });
+document.getElementById('btn-leaderboard').addEventListener('click', () => { G.lbReturn = null; LB.load().then(() => { renderLeaderboard(); document.getElementById('lb-status').textContent = LB.online ? '🌐 Online board — scores from every player' : '📴 Offline — showing local scores only'; show('leaderboard-screen'); }); });
+document.getElementById('btn-leaderboard-back').addEventListener('click', () => { const r = G.lbReturn || 'title-screen'; G.lbReturn = null; if (r === 'title-screen') refreshStars(); show(r); });
+document.getElementById('btn-initials-back').addEventListener('click', () => { if (!G.initEntry) return; for (let i=2;i>=0;i--) if (G.initEntry[i]) { G.initEntry[i] = ''; break; } updateInitialSlots(); });
+document.getElementById('btn-initials-ok').addEventListener('click', saveInitials);
+document.getElementById('btn-gallery-back').addEventListener('click', () => show('title-screen'));
+document.getElementById('btn-setup-back').addEventListener('click', () => show('title-screen'));
+document.getElementById('avatar-row').addEventListener('click', e => {
+  const card = e.target.closest('.choice-card'); if (!card) return;
+  document.querySelectorAll('#avatar-row .choice-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  G.avatarKey = card.dataset.avatar; G.avatar = AVATARS[G.avatarKey];
+});
+document.getElementById('difficulty-row').addEventListener('click', e => {
+  const card = e.target.closest('.choice-card'); if (!card) return;
+  document.querySelectorAll('#difficulty-row .choice-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  G.difficultyKey = card.dataset.difficulty; G.difficulty = DIFFICULTY[G.difficultyKey];
+});
+document.getElementById('controls-row').addEventListener('click', e => {
+  const card = e.target.closest('.choice-card'); if (!card) return;
+  setControlMode(card.dataset.controls);
+});
+document.getElementById('btn-start-game').addEventListener('click', () => {
+  AudioSys.init();
+  G.score = 0; G.milestoneIdx = 0;
+  G.continuesLeft = G.difficulty.continues;
+  playCutscene('intro', () => startLevel(1));
+});
+document.getElementById('btn-level-back').addEventListener('click', () => show('title-screen'));
+document.getElementById('btn-level-1').addEventListener('click', () => { G.continuesLeft = G.difficulty.continues; startLevel(1); });
+document.getElementById('btn-level-2').addEventListener('click', () => { G.continuesLeft = G.difficulty.continues; playCutscene('breakout', () => startLevel(2)); });
+document.getElementById('btn-level-3').addEventListener('click', () => { G.continuesLeft = G.difficulty.continues; playCutscene('intoMountain', () => startLevel(3)); });
+function togglePause() {
+  if (G.state !== 'playing') return;
+  G.paused = !G.paused;
+  if (G.paused) { show('pause-screen'); if (document.pointerLockElement) document.exitPointerLock(); }
+  else show('hud');
+}
+document.getElementById('pause-btn').addEventListener('click', togglePause);
+document.getElementById('btn-resume').addEventListener('click', togglePause);
+document.getElementById('btn-restart-level').addEventListener('click', () => { G.paused = false; startLevel(G.level); });
+document.getElementById('btn-quit').addEventListener('click', () => { G.paused = false; G.state = 'title'; AudioSys.stopMusic(); refreshStars(); show('title-screen'); });
+document.getElementById('btn-continue').addEventListener('click', continueGame);
+document.getElementById('btn-gameover-restart').addEventListener('click', () => startLevel(G.level));
+document.getElementById('btn-gameover-quit').addEventListener('click', () => { G.state = 'title'; AudioSys.stopMusic(); refreshStars(); show('title-screen'); });
+document.getElementById('btn-next-level').addEventListener('click', () => {
+  if (G.level === 1) playCutscene('breakout', () => startLevel(2));
+  else if (G.level === 2) playCutscene('intoMountain', () => startLevel(3));
+  else playCutscene('ending', () => {
+    // first Hard victory: play the secret movie before the birthday card
+    if (G.movieJustUnlocked) { G.movieJustUnlocked = false; playMovie(showBirthdayCard); }
+    else showBirthdayCard();
+  });
+});
+document.getElementById('btn-complete-restart').addEventListener('click', () => startLevel(G.level));
+document.getElementById('btn-complete-quit').addEventListener('click', () => { G.state = 'title'; AudioSys.stopMusic(); refreshStars(); show('title-screen'); });
+document.getElementById('btn-card-done').addEventListener('click', () => { refreshStars(); show('title-screen'); });
+document.getElementById('mute-btn').addEventListener('click', (e) => { e.target.textContent = AudioSys.toggleMute() ? '🔇' : '🔊'; });
+
+// ============================================================================
+// MAIN LOOP
+// ============================================================================
+let lastTime = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  if (G.state === 'cutscene') { updateCutscene(now); return; }
+  if (G.state === 'playing' && !G.paused) {
+    updatePlayer(dt);
+    updateEnemies(dt, now);
+    updateDragon(dt, now);
+    updateBalls(dt, now);
+    updatePickups(dt, now);
+    updateBunnies(dt, now);
+    updateParticles(dt);
+    updateSpawning(dt);
+    // survival timer
+    if (G.level !== 3) {
+      G.timeLeft -= dt;
+      if (G.timeLeft <= 0) { G.timeLeft = 0; onLevelComplete(); }
+      if (Math.ceil(G.timeLeft) !== Math.ceil(G.timeLeft + dt)) updateHUD();
+    }
+  }
+  if (G.state === 'playing' || G.state === 'victory' || G.state === 'paused') {
+    if (G.state === 'victory') updateParticles(dt);
+    renderer.render(scene, camera);
+  }
+}
+
+// ============================================================================
+// INIT
+// ============================================================================
+LB.load();
+refreshStars();
+buildZooLevel(); // pretty backdrop behind the title
+show('title-screen');
+G.state = 'title';
+requestAnimationFrame(loop);
+
+// Debug/test hook (harmless in production)
+window.__game = { G, throwBall, startLevel, addScore, spawnEnemy, player };
+</script>
+</body>
+</html>
