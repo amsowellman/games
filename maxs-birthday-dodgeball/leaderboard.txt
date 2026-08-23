@@ -1,0 +1,11 @@
+{
+  "title": "Max's Birthday Dodgeball - All-Time Leaderboard",
+  "comment": "Add new entries to the scores array (3-letter initials). The game merges this with each player's own device scores. Keep it valid JSON - no trailing commas!",
+  "scores": [
+    { "initials": "DRG", "score": 3900, "level": 3, "difficulty": "hard",   "date": "2026-08-20" },
+    { "initials": "FRT", "score": 3100, "level": 3, "difficulty": "medium", "date": "2026-08-20" },
+    { "initials": "EGL", "score": 2400, "level": 2, "difficulty": "medium", "date": "2026-08-20" },
+    { "initials": "MNK", "score": 1800, "level": 2, "difficulty": "easy",   "date": "2026-08-20" },
+    { "initials": "GRF", "score": 1200, "level": 1, "difficulty": "easy",   "date": "2026-08-20" }
+  ]
+}
