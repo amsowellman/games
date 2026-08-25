@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" href="data:,">
+<title>Guinea Cup Cafe</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#2b1a2e;
+    font-family:"Comic Sans MS","Chalkboard SE","Segoe UI",sans-serif; color:#4a3540;
+    user-select:none; -webkit-user-select:none; }
+  #game-canvas { position:absolute; inset:0; display:block; }
+  .hidden { display:none !important; }
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; z-index:20; overflow-y:auto; padding:16px; }
+
+  /* ---------- shared card style ---------- */
+  .card { background:#fff8f0; border:4px solid #ffb3c6; border-radius:24px; padding:24px 32px;
+    text-align:center; box-shadow:0 10px 40px rgba(0,0,0,.35); max-width:min(680px,94vw);
+    max-height:94vh; overflow-y:auto; }
+  .card h1 { font-size:clamp(26px,5vw,42px); color:#e05780; text-shadow:0 2px 0 #ffd9e3; }
+  .card h2 { font-size:clamp(14px,2.4vw,18px); color:#a06c8a; margin:4px 0 14px; }
+  .bigbtn { pointer-events:auto; cursor:pointer; display:inline-block; font-size:clamp(16px,2.6vw,21px);
+    font-weight:700; font-family:inherit; color:#fff; background:linear-gradient(180deg,#ff8fab,#e05780);
+    border:none; border-radius:50px; padding:13px 44px; margin:8px 6px 0;
+    box-shadow:0 4px 0 #b03a5e, 0 8px 16px rgba(0,0,0,.25); transition:transform .1s; }
+  .bigbtn:hover { transform:scale(1.05); }
+  .bigbtn:active { transform:translateY(3px); box-shadow:0 1px 0 #b03a5e; }
+  .bigbtn.mint { background:linear-gradient(180deg,#7fd8c0,#3aa98c); box-shadow:0 4px 0 #2a7a64, 0 8px 16px rgba(0,0,0,.25); }
+  .bigbtn.mint:active { box-shadow:0 1px 0 #2a7a64; }
+  .bigbtn.lav { background:linear-gradient(180deg,#c9a8e8,#9a6cc8); box-shadow:0 4px 0 #6f4a96, 0 8px 16px rgba(0,0,0,.25); }
+  .bigbtn.lav:active { box-shadow:0 1px 0 #6f4a96; }
+
+  /* ---------- title ---------- */
+  #title-screen { background:radial-gradient(ellipse at 50% 25%, #ffd9e3 0%, #ffb3c6 45%, #e05780 100%); }
+  #title-logo { width:min(280px,50vw); border-radius:50%; border:6px solid #fff; box-shadow:0 10px 30px rgba(0,0,0,.25); margin-bottom:10px; }
+  #title-screen h1 { font-size:clamp(30px,6vw,54px); color:#fff; text-shadow:0 3px 0 #d62828, 0 6px 20px rgba(0,0,0,.3); }
+  #title-screen .tag { color:#fff; font-size:clamp(14px,2.4vw,19px); margin:6px 0 18px; text-shadow:0 1px 4px rgba(0,0,0,.3); }
+
+  /* ---------- character creation ---------- */
+  #charcreate-screen { background:linear-gradient(180deg,#ffe8ef,#ffd0dd); justify-content:flex-start; }
+  .cc-wrap { display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
+  #avatar-preview { background:#fff; border:4px solid #ffb3c6; border-radius:20px; padding:8px; }
+  .cc-options { max-width:min(430px,92vw); text-align:left; }
+  .cc-row { display:flex; align-items:center; margin:5px 0; background:#fff; border-radius:12px; padding:6px 10px; }
+  .cc-row .lbl { width:96px; font-weight:700; font-size:13px; color:#a06c8a; flex-shrink:0; }
+  .cc-row .cyc { cursor:pointer; border:none; background:#ffd9e3; border-radius:8px; width:30px; height:30px;
+    font-size:16px; font-weight:700; color:#e05780; flex-shrink:0; }
+  .cc-row .val { flex:1; text-align:center; font-size:14px; font-weight:600; color:#4a3540; }
+  #cc-name { font-family:inherit; font-size:17px; padding:9px 14px; border:3px solid #ffb3c6; border-radius:12px;
+    width:100%; margin-bottom:8px; text-align:center; color:#4a3540; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:10; }
+  #hud-top { position:absolute; top:0; left:0; right:0; display:flex; justify-content:space-between; padding:10px 14px; }
+  .hud-pill { background:rgba(255,248,240,.92); border:3px solid #ffb3c6; border-radius:20px;
+    padding:6px 16px; font-weight:700; font-size:clamp(13px,2.2vw,17px); color:#4a3540; }
+  #hud-coins { color:#b8860b; }
+  #hud-day { color:#e05780; }
+
+  /* speech bubbles */
+  .bubble { position:absolute; transform:translate(-50%,-100%); background:#fff; border:3px solid #4a3540;
+    border-radius:16px; padding:8px 12px; font-size:clamp(12px,2vw,15px); font-weight:600; color:#4a3540;
+    pointer-events:none; z-index:11; min-width:90px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,.25); }
+  .bubble::after { content:''; position:absolute; left:50%; bottom:-12px; transform:translateX(-50%);
+    border:6px solid transparent; border-top:10px solid #4a3540; }
+  .bubble .zzz { color:#9a8cc8; font-style:italic; }
+  .bubble .book { color:#6a8cc8; }
+
+  /* ---------- assembly panel ---------- */
+  #assembly { position:absolute; left:0; right:0; bottom:0; z-index:12; background:rgba(255,248,240,.95);
+    border-top:4px solid #ffb3c6; padding:8px 10px; pointer-events:auto; }
+  #tray { display:flex; gap:6px; flex-wrap:wrap; min-height:44px; align-items:center; margin-bottom:6px; }
+  #tray .traylabel { font-size:13px; color:#a06c8a; font-weight:700; }
+  .tray-item { background:#fff; border:2px solid #e05780; border-radius:12px; padding:5px 10px;
+    font-size:13px; font-weight:700; color:#e05780; cursor:pointer; }
+  .tray-item .mod { color:#9a6cc8; font-weight:600; }
+  .tray-item:hover { background:#ffd9e3; }
+  #ingredients { display:flex; gap:6px; flex-wrap:wrap; }
+  .ing-btn { cursor:pointer; border:2px solid #ffb3c6; background:#fff; border-radius:12px;
+    padding:7px 12px; font-size:clamp(12px,2vw,14px); font-weight:700; color:#4a3540; font-family:inherit; }
+  .ing-btn:hover { background:#ffd9e3; border-color:#e05780; }
+  .ing-btn.cat { background:#ffb3c6; color:#fff; border-color:#e05780; }
+  .ing-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  /* ---------- briefing / shop / dayend ---------- */
+  #briefing-screen, #shop-screen, #dayend-screen { background:rgba(43,26,46,.75); }
+  .speaker { display:flex; align-items:center; gap:12px; text-align:left; margin-bottom:10px; }
+  .speaker .face { font-size:52px; }
+  .speaker .who { font-weight:700; color:#e05780; font-size:15px; }
+  .speaker .say { font-size:clamp(14px,2.4vw,17px); color:#4a3540; line-height:1.5; }
+  .shop-grid { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px 0; }
+  .shop-item { background:#fff; border:3px solid #ffb3c6; border-radius:16px; padding:12px 14px;
+    width:150px; cursor:pointer; transition:transform .1s; }
+  .shop-item:hover { transform:scale(1.04); border-color:#e05780; }
+  .shop-item .emoji { font-size:34px; }
+  .shop-item .nm { font-weight:700; font-size:14px; margin:4px 0 2px; }
+  .shop-item .pr { color:#b8860b; font-weight:700; font-size:14px; }
+  .shop-item.owned { border-color:#6bcb77; opacity:.75; cursor:default; }
+  .shop-item.owned .pr { color:#6bcb77; }
+  .shop-item.cant { opacity:.5; cursor:not-allowed; }
+
+  /* ---------- cutscenes ---------- */
+  #cutscene { position:absolute; inset:0; background:#000; z-index:30; display:none; }
+  #cutscene-canvas { position:absolute; inset:0; width:100%; height:100%; }
+  #skip-btn { position:absolute; bottom:24px; right:24px; padding:12px 28px; font-size:17px;
+    font-family:inherit; font-weight:bold; color:#fff; background:rgba(255,255,255,.2);
+    border:2px solid #fff; border-radius:30px; cursor:pointer; z-index:31; }
+  #skip-btn:hover { background:rgba(255,255,255,.35); }
+  #cutscene-caption { position:absolute; bottom:24px; left:24px; right:150px; color:#fff;
+    font-size:clamp(14px,2.4vw,21px); text-shadow:0 2px 6px #000; z-index:31; line-height:1.45; }
+
+  /* ---------- mini-games ---------- */
+  .minigame-area { position:relative; width:min(520px,90vw); height:300px; background:#e8f7e8;
+    border:3px solid #6bcb77; border-radius:16px; overflow:hidden; margin:10px 0; }
+  .mg-pig { position:absolute; font-size:44px; transition:left .3s, top .3s; }
+  .mg-veggie { position:absolute; font-size:34px; cursor:pointer; transition:transform .1s; }
+  .mg-veggie:hover { transform:scale(1.2); }
+  .cupcake-preview { font-size:90px; margin:8px 0; }
+  .mg-row { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:5px 0; }
+  .mg-pick { cursor:pointer; border:2px solid #ffb3c6; background:#fff; border-radius:10px;
+    padding:6px 10px; font-size:14px; font-weight:700; font-family:inherit; }
+  .mg-pick.sel { background:#ffd9e3; border-color:#e05780; }
+
+  /* ---------- victory ---------- */
+  #victory-screen { background:radial-gradient(ellipse at center,#fff8e7,#ffd9e3 60%,#ffb3c6); }
+  #victory-screen .medal { font-size:90px; animation:spin 3s ease-in-out infinite; }
+  @keyframes spin { 0%,100%{transform:rotate(-8deg) scale(1)} 50%{transform:rotate(8deg) scale(1.1)} }
+
+  #toast { position:absolute; top:70px; left:50%; transform:translateX(-50%); background:rgba(255,248,240,.97);
+    border:3px solid #ffb3c6; border-radius:16px; padding:10px 22px; font-weight:700; font-size:clamp(14px,2.4vw,18px);
+    color:#4a3540; z-index:15; opacity:0; transition:opacity .3s; pointer-events:none; text-align:center; }
+  #mute-btn { position:absolute; top:60px; right:14px; z-index:16; width:42px; height:42px; border-radius:12px;
+    background:rgba(255,248,240,.9); border:3px solid #ffb3c6; font-size:18px; cursor:pointer; pointer-events:auto; }
+</style>
+</head>
+<body>
+<canvas id="game-canvas"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="hud-top">
+    <div class="hud-pill" id="hud-day">Day 1</div>
+    <div class="hud-pill" id="hud-customers">😊 0/4</div>
+    <div class="hud-pill" id="hud-coins">🪙 0</div>
+  </div>
+</div>
+<button id="mute-btn" class="hidden">🔊</button>
+<div id="toast"></div>
+
+<!-- Assembly panel -->
+<div id="assembly" class="hidden">
+  <div id="tray"><span class="traylabel">Tray:</span><span id="tray-empty" style="color:#c9a8b8; font-size:13px;">tap ingredients below to build the order</span></div>
+  <div id="ingredients"></div>
+</div>
+
+<!-- Title -->
+<div id="title-screen" class="screen hidden">
+  <img id="title-logo" src="2t3BMc2EtBxZfg.3.png" alt="Guineacup Cafe">
+  <h1>Guinea Cup Cafe</h1>
+  <div class="tag">The coziest bakery in town — with guinea pigs! 🐹🧁</div>
+  <button class="bigbtn" id="btn-new">🌸 New Game</button>
+  <button class="bigbtn mint hidden" id="btn-continue">▶ Continue</button>
+</div>
+
+<!-- Character creation -->
+<div id="charcreate-screen" class="screen hidden">
+  <div class="card">
+    <h1>Meet the new baker!</h1>
+    <h2>Mrs. Buttercup can't wait to meet you, dear</h2>
+    <input id="cc-name" maxlength="16" placeholder="What is your name?">
+    <div class="cc-wrap">
+      <canvas id="avatar-preview" width="220" height="280"></canvas>
+      <div class="cc-options" id="cc-options"></div>
+    </div>
+    <button class="bigbtn" id="btn-cc-done">🧁 Start Day 1!</button>
+  </div>
+</div>
+
+<!-- Briefing -->
+<div id="briefing-screen" class="screen hidden">
+  <div class="card">
+    <h1 id="briefing-title">Day 1</h1>
+    <div class="speaker">
+      <div class="face" id="briefing-face">��</div>
+      <div>
+        <div class="who" id="briefing-who">Mrs. Buttercup</div>
+        <div class="say" id="briefing-text"></div>
+      </div>
+    </div>
+    <button class="bigbtn" id="btn-briefing-go">☕ Open the Cafe!</button>
+  </div>
+</div>
+
+<!-- Day end -->
+<div id="dayend-screen" class="screen hidden">
+  <div class="card">
+    <h1 id="dayend-title">Day Complete!</h1>
+    <p id="dayend-stats" style="font-size:17px; margin:8px 0;"></p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+      <button class="bigbtn mint" id="btn-shop">🛍 Shop</button>
+      <button class="bigbtn lav" id="btn-minigame">🐹 Feed the Piggies</button>
+      <button class="bigbtn lav" id="btn-cupcake">🧁 Decorate Cupcake</button>
+      <button class="bigbtn" id="btn-next-day">🌅 Next Day</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shop -->
+<div id="shop-screen" class="screen hidden">
+  <div class="card">
+    <h1>Cafe Shop</h1>
+    <h2>Your coins: <span id="shop-coins">🪙 0</span></h2>
+    <div class="shop-grid" id="shop-grid"></div>
+    <button class="bigbtn" id="btn-shop-done">Done</button>
+  </div>
+</div>
+
+<!-- Mini-games -->
+<div id="minigame-screen" class="screen hidden">
+  <div class="card">
+    <h1 id="mg-title">Feed the Guinea Pigs!</h1>
+    <p id="mg-desc" style="font-size:14px; color:#a06c8a;"></p>
+    <div class="minigame-area" id="mg-area"></div>
+    <div class="mg-row" id="mg-controls"></div>
+    <p id="mg-score" style="font-weight:700; color:#b8860b;"></p>
+    <button class="bigbtn" id="btn-mg-done">Done</button>
+  </div>
+</div>
+
+<!-- Cutscene -->
+<div id="cutscene">
+  <canvas id="cutscene-canvas"></canvas>
+  <div id="cutscene-caption"></div>
+  <button id="skip-btn">Skip ▶▶</button>
+</div>
+
+<!-- Victory -->
+<div id="victory-screen" class="screen hidden">
+  <div class="card">
+    <div class="medal">🏅</div>
+    <h1>Star Employee!</h1>
+    <p style="font-size:17px; color:#4a3540; margin:10px 0;" id="victory-text">
+      Festival Day was a huge success! Mrs. Buttercup is SO proud, dear.<br>
+      The guinea pigs are wearing party hats. Pip only dropped TWO trays.<br>
+      Theo smiled. Marigold sang. You did it!
+    </p>
+    <p style="font-weight:700; color:#b8860b; font-size:19px;" id="victory-coins"></p>
+    <button class="bigbtn" id="btn-victory-done">🏠 Back to Title</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   GUINEA CUP CAFE — a cozy bakery game
+   single-file build: Three.js cafe + DOM gameplay + 2D cutscenes
+   ============================================================ */
+
+// ---------- save ----------
+const Save = {
+  data: null,
+  load() { try { this.data = JSON.parse(localStorage.getItem('guineaCupCafe')); } catch(e){} },
+  write() {
+    try {
+      this.data = { day: G.day, coins: G.coins, unlocked: G.unlocked, equipped: G.equipped, avatar: G.avatar };
+      localStorage.setItem('guineaCupCafe', JSON.stringify(this.data));
+    } catch(e){}
+  },
+  clear() { try { localStorage.removeItem('guineaCupCafe'); } catch(e){} }
+};
+Save.load();
+
+// ---------- global state ----------
+const G = {
+  state: 'title',   // title | create | cutscene | briefing | day | dayend | shop | minigame | victory
+  day: 1,
+  coins: 0,
+  avatar: null,
+  unlocked: { pigHats: [], decorations: [], menu: [], outfits: [] },
+  equipped: { pigHat: null },
+  customers: [],
+  servedToday: 0, totalToday: 0,
+  tray: [],
+  pigOnCounter: null,
+  teacupFound: false,
+  tipReady: false,
+  muted: false,
+  plushTipIdx: 0,
+};
+
+// ---------- audio: mp3 music + WebAudio SFX ----------
+const AudioSys = {
+  ctx: null, music: null,
+  init() {
+    if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (!this.music) {
+      this.music = new Audio('Guineacup_Cafe.mp3');
+      this.music.loop = true; this.music.volume = 0.4;
+      this.music.muted = G.muted;
+      this.music.play().catch(()=>{});
+    }
+  },
+  tone(f, d, type='sine', vol=0.15, when=0, slideTo=null) {
+    if (!this.ctx || G.muted) return;
+    const t = this.ctx.currentTime + when;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + d);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(t); o.stop(t + d + 0.05);
+  },
+  click()   { this.tone(800, 0.05, 'square', 0.08); },
+  add()     { this.tone(660, 0.07, 'triangle', 0.15); this.tone(880, 0.08, 'triangle', 0.12, 0.05); },
+  serve()   { [523, 659, 784].forEach((f,i)=>this.tone(f, 0.12, 'triangle', 0.18, i*0.07)); },
+  oops()    { this.tone(330, 0.15, 'sine', 0.15); this.tone(294, 0.2, 'sine', 0.12, 0.12); },
+  coin()    { this.tone(988, 0.06, 'square', 0.12); this.tone(1319, 0.1, 'square', 0.12, 0.05); },
+  wheek()   { this.tone(1200, 0.09, 'sine', 0.2, 0, 1800); this.tone(1500, 0.12, 'sine', 0.18, 0.09, 2200); },
+  bell()    { this.tone(1568, 0.3, 'sine', 0.15); this.tone(2093, 0.4, 'sine', 0.1, 0.1); },
+  snore()   { this.tone(140, 0.4, 'sawtooth', 0.06, 0, 90); },
+  fanfare() { [523,523,659,784,880,1047].forEach((f,i)=>this.tone(f, i===5?0.5:0.14, 'triangle', 0.2, i*0.12)); },
+  toggleMute() {
+    G.muted = !G.muted;
+    if (this.music) this.music.muted = G.muted;
+    return G.muted;
+  }
+};
+document.addEventListener('pointerdown', () => AudioSys.init());
+
+// ---------- three.js setup ----------
+if (typeof THREE === 'undefined') {
+  document.body.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#ffe8ef;color:#a06c8a;font-family:sans-serif;font-size:22px;text-align:center;padding:30px;line-height:1.6;">🐹 Guinea Cup Cafe needs an internet connection the first time it loads<br>(to fetch the Three.js 3D engine). Please connect and refresh!</div>';
+  throw new Error('THREE failed to load from CDN');
+}
+const canvas = document.getElementById('game-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffe8d6);
+scene.fog = new THREE.Fog(0xffe8d6, 18, 45);
+
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth/window.innerHeight, 0.1, 100);
+// player stands behind the counter
+camera.position.set(0, 1.55, 3.2);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// drag-to-look (no pointer lock — we need clicks for UI)
+let lookYaw = 0, lookPitch = -0.13, dragging = false, dragMoved = 0, lastPX = 0, lastPY = 0;
+canvas.addEventListener('pointerdown', e => { dragging = true; dragMoved = 0; lastPX = e.clientX; lastPY = e.clientY; });
+window.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastPX, dy = e.clientY - lastPY;
+  dragMoved += Math.abs(dx) + Math.abs(dy);
+  lastPX = e.clientX; lastPY = e.clientY;
+  lookYaw = Math.max(-0.9, Math.min(0.9, lookYaw - dx * 0.003));
+  lookPitch = Math.max(-0.35, Math.min(0.3, lookPitch - dy * 0.003));
+});
+window.addEventListener('pointerup', () => { dragging = false; });
+
+// warm lighting
+const hemi = new THREE.HemisphereLight(0xfff2e0, 0xd4a5a5, 0.68);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffe0b3, 0.62);
+sun.position.set(6, 9, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+scene.add(sun);
+const counterLight = new THREE.PointLight(0xffd9a0, 0.45, 12);
+counterLight.position.set(0, 2.6, 0.5);
+scene.add(counterLight);
+
+// ---------- material/mesh helpers ----------
+const _matCache = {};
+function M(color, opts={}) {
+  const k = color + JSON.stringify(opts);
+  if (!_matCache[k]) _matCache[k] = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.02, ...opts });
+  return _matCache[k];
+}
+function box(w,h,d,color,opts) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), M(color,opts)); m.castShadow = true; m.receiveShadow = true; return m; }
+function sph(r,color,opts) { const m = new THREE.Mesh(new THREE.SphereGeometry(r,18,14), M(color,opts)); m.castShadow = true; return m; }
+function cyl(rt,rb,h,color,opts) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,18), M(color,opts)); m.castShadow = true; return m; }
+function cone(r,h,color,opts) { const m = new THREE.Mesh(new THREE.ConeGeometry(r,h,18), M(color,opts)); m.castShadow = true; return m; }
+
+// ---------- the cafe ----------
+const cafe = new THREE.Group();
+scene.add(cafe);
+const clickables = [];   // meshes with userData.onClick
+
+function buildCafe() {
+  // floor: warm wood
+  const floor = box(16, 0.2, 14, 0xd9a86c, { roughness: 0.7 });
+  floor.position.y = -0.1; floor.receiveShadow = true; cafe.add(floor);
+  // rug
+  const rug = cyl(2.2, 2.2, 0.03, 0xffc9d9); rug.position.set(0, 0.02, -2); cafe.add(rug);
+
+  // walls: cream with pink wainscot
+  const backWall = box(16, 5, 0.3, 0xfff3e4); backWall.position.set(0, 2.5, -7); cafe.add(backWall);
+  const leftWall = box(0.3, 5, 14, 0xfff3e4); leftWall.position.set(-8, 2.5, 0); cafe.add(leftWall);
+  const rightWall = box(0.3, 5, 14, 0xfff3e4); rightWall.position.set(8, 2.5, 0); cafe.add(rightWall);
+  const wains = box(16, 1, 0.34, 0xffc9d9); wains.position.set(0, 0.5, -7); cafe.add(wains);
+  // front wall with door opening (behind camera side is open)
+  const frontL = box(6, 5, 0.3, 0xfff3e4); frontL.position.set(-5, 2.5, 7); cafe.add(frontL);
+  const frontR = box(6, 5, 0.3, 0xfff3e4); frontR.position.set(5, 2.5, 7); cafe.add(frontR);
+  const frontTop = box(4, 2, 0.3, 0xfff3e4); frontTop.position.set(0, 4, 7); cafe.add(frontTop);
+  // door (customers enter through here)
+  const door = box(2.6, 3, 0.15, 0xc98f5d); door.position.set(0, 1.5, 7.1); cafe.add(door);
+  const doorSign = box(1.8, 0.5, 0.06, 0xffd9e3); doorSign.position.set(0, 3.4, 7.05); cafe.add(doorSign);
+
+  // windows on back wall
+  for (const wx of [-4.5, 4.5]) {
+    const win = box(2.4, 1.8, 0.1, 0xbfe8ff, { roughness: 0.2 }); win.position.set(wx, 2.8, -6.9); cafe.add(win);
+    const sill = box(2.6, 0.12, 0.3, 0xffb3c6); sill.position.set(wx, 1.85, -6.85); cafe.add(sill);
+    
+  }
+
+  // upstairs hint: balcony railing visible high on back wall
+  const balcony = box(8, 0.15, 1.2, 0xd9a86c); balcony.position.set(0, 3.6, -6.2); cafe.add(balcony);
+  for (let i = 0; i < 12; i++) {
+    const rail = cyl(0.04, 0.04, 0.8, 0xc98f5d); rail.position.set(-3.6 + i * 0.65, 4.05, -5.7); cafe.add(rail);
+  }
+  const railTop = box(7.8, 0.08, 0.08, 0xc98f5d); railTop.position.set(0, 4.45, -5.7); cafe.add(railTop);
+
+  // staircase up to the bedrooms (back-right corner)
+  for (let i = 0; i < 7; i++) {
+    const st = box(1.2, 0.16, 0.42, 0xd9a86c);
+    st.position.set(6.9, 0.15 + i * 0.5, -3.2 - i * 0.45);
+    cafe.add(st);
+  }
+  const stairRail = box(0.08, 0.08, 3.8, 0xc98f5d);
+  stairRail.position.set(6.25, 2.1, -4.6); stairRail.rotation.x = 0.72; cafe.add(stairRail);
+  // bedroom doors upstairs on the back wall (yours, Pip's, Marigold's & Theo's)
+  for (const [dx, dc] of [[-2.6, 0xffb3c6], [0, 0x7fd8c0], [2.6, 0xc9a8e8]]) {
+    const d = box(1.1, 1.3, 0.08, dc); d.position.set(dx, 4.25, -6.82); cafe.add(d);
+    const knob = sph(0.045, 0xffd93d, { metalness: 0.5, roughness: 0.3 }); knob.position.set(dx + 0.36, 4.25, -6.74); cafe.add(knob);
+  }
+
+  // ---- the counter (player stands behind it) ----
+  const counter = box(6.5, 1.05, 1.1, 0xffe0d0); counter.position.set(0, 0.52, 1.4); cafe.add(counter);
+  const counterTop = box(6.7, 0.08, 1.25, 0xfff8f0); counterTop.position.set(0, 1.09, 1.4); cafe.add(counterTop);
+  // display case on counter (left): glass box with pastries
+  const caseB = box(2.4, 0.1, 0.9, 0xd9a86c); caseB.position.set(-1.8, 1.18, 1.3); cafe.add(caseB);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.7, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0xcfefff, transparent: true, opacity: 0.25, roughness: 0.1 }));
+  glass.position.set(-1.8, 1.6, 1.3); cafe.add(glass);
+  // pastries in the case
+  const pastryColors = [0xff8fab, 0x7fb3e8, 0x8b5a2b, 0xfff3e4, 0xffe066];
+  for (let i = 0; i < 5; i++) {
+    const cup = cyl(0.09, 0.07, 0.1, 0xffd9e3); cup.position.set(-2.6 + i * 0.4, 1.28, 1.25); cafe.add(cup);
+    const top = sph(0.08, pastryColors[i]); top.position.set(-2.6 + i * 0.4, 1.38, 1.25); cafe.add(top);
+  }
+  // cookies on a plate
+  const plate = cyl(0.35, 0.35, 0.04, 0xffffff); plate.position.set(-0.5, 1.16, 1.2); cafe.add(plate);
+  for (let i = 0; i < 3; i++) {
+    const ck = cyl(0.09, 0.09, 0.03, 0xd9a86c); ck.position.set(-0.6 + i * 0.15, 1.2, 1.15 + (i%2)*0.12); cafe.add(ck);
+  }
+
+  // tea & coffee station (right of counter)
+  const teaStation = box(1.2, 0.9, 0.8, 0xc9a8e8); teaStation.position.set(2.6, 1.5, 1.3); cafe.add(teaStation);
+  const kettle = sph(0.18, 0xffb3c6, { metalness: 0.4, roughness: 0.3 }); kettle.position.set(2.4, 2.05, 1.2); cafe.add(kettle);
+  const spout = cyl(0.03, 0.05, 0.25, 0xffb3c6); spout.position.set(2.6, 2.1, 1.05); spout.rotation.z = 0.7; cafe.add(spout);
+  for (let i = 0; i < 3; i++) {
+    const mug = cyl(0.07, 0.06, 0.12, [0xff8fab, 0x7fd8c0, 0xc9a8e8][i]);
+    mug.position.set(2.2 + i * 0.35, 1.2, 1.7); cafe.add(mug);
+  }
+
+  // ice cream stand (far right)
+  const iceStand = box(1.6, 1.3, 1, 0x7fd8c0); iceStand.position.set(5.2, 0.65, -1); cafe.add(iceStand);
+  const iceTop = box(1.7, 0.08, 1.1, 0xfff8f0); iceTop.position.set(5.2, 1.34, -1); cafe.add(iceTop);
+  const iceSign = box(1.4, 0.5, 0.08, 0xffd9e3); iceSign.position.set(5.2, 2.2, -1); cafe.add(iceSign);
+  // flavor tubs
+  const iceColors = [0xfff3e4, 0x8b5a2b, 0xff8fab, 0x7fd8c0, 0x7fb3e8, 0xffe066, 0xd4a5a5, 0xff9f68];
+  for (let i = 0; i < 8; i++) {
+    const tub = cyl(0.14, 0.14, 0.12, iceColors[i]);
+    tub.position.set(4.6 + (i % 4) * 0.4, 1.44, -1.2 + Math.floor(i / 4) * 0.4);
+    cafe.add(tub);
+  }
+
+  // seating: 6 tables behind the customer area
+  for (let t = 0; t < 6; t++) {
+    const tx = -5.5 + (t % 3) * 3.2, tz = -3.5 - Math.floor(t / 3) * 2.4;
+    const table = cyl(0.55, 0.55, 0.06, 0xfff8f0); table.position.set(tx, 0.75, tz); cafe.add(table);
+    const leg = cyl(0.06, 0.08, 0.75, 0xc98f5d); leg.position.set(tx, 0.37, tz); cafe.add(leg);
+    for (const s of [-1, 1]) {
+      const chair = box(0.45, 0.08, 0.45, 0xffb3c6); chair.position.set(tx + s * 0.95, 0.45, tz); cafe.add(chair);
+      const chairLeg = box(0.4, 0.45, 0.4, 0xe09aae); chairLeg.position.set(tx + s * 0.95, 0.22, tz); cafe.add(chairLeg);
+    }
+    // tiny flower vase on each table
+    const vase = cyl(0.06, 0.08, 0.16, 0x7fb3e8); vase.position.set(tx, 0.86, tz); cafe.add(vase);
+    const bloom = sph(0.07, [0xff8fab, 0xffe066, 0xc9a8e8][t % 3]); bloom.position.set(tx, 0.98, tz); cafe.add(bloom);
+  }
+
+  // guinea pig enclosure (left corner)
+  const pen = new THREE.Group(); pen.position.set(-5.8, 0, 2.5); cafe.add(pen);
+  const penFloor = box(2.4, 0.06, 2, 0xf5e6c8); penFloor.position.y = 0.05; pen.add(penFloor);
+  for (const [px, pz, w, d] of [[0, -1, 2.4, 0.08], [0, 1, 2.4, 0.08], [-1.2, 0, 0.08, 2], [1.2, 0, 0.08, 2]]) {
+    const wall = box(w, 0.5, d, 0xc98f5d); wall.position.set(px, 0.3, pz); pen.add(wall);
+  }
+  const hideout = box(0.6, 0.4, 0.5, 0xe05780); hideout.position.set(-0.6, 0.25, -0.5); pen.add(hideout);
+  const hay = sph(0.3, 0xf5e6c8); hay.scale.set(1, 0.5, 1); hay.position.set(0.6, 0.12, 0.5); pen.add(hay);
+
+  // teacups on the counter (one hides a guinea pig!)
+  G.teacups = [];
+  for (let i = 0; i < 3; i++) {
+    const cup = new THREE.Group();
+    const cupBody = cyl(0.09, 0.06, 0.12, 0xffffff); cup.add(cupBody);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.015, 8, 18), M(0xffb3c6)); rim.rotation.x = Math.PI/2; rim.position.y = 0.06; cup.add(rim);
+    cup.position.set(-0.2 + i * 0.55, 1.2, 1.75);
+    cup.userData.onClick = () => onTeacupClick(i);
+    cafe.add(cup);
+    clickables.push(cup);
+    G.teacups.push(cup);
+  }
+
+  // tip jar (right side of counter) — a guinea pig sits in it!
+  const jar = new THREE.Group();
+  const jarGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.3, 14),
+    new THREE.MeshStandardMaterial({ color: 0xcfefff, transparent: true, opacity: 0.35, roughness: 0.1 }));
+  jar.add(jarGlass);
+  jar.position.set(1.6, 1.3, 1.6);
+  jar.userData.onClick = () => onTipJarClick();
+  cafe.add(jar);
+  clickables.push(jar);
+  G.tipJar = jar;
+
+  // stuffed guinea pig: Sir Fluffington, the tutorial guide (tap for tips!)
+  const plush = buildGuineaPig(0xc9a8e8, 0xfff8f0);
+  plush.scale.setScalar(0.55);
+  plush.position.set(-3.05, 1.13, 1.65);
+  plush.rotation.y = 0.5;
+  plush.rotation.z = 0.12;   // slightly lopsided, well-loved plushie
+  plush.userData.onClick = () => onPlushClick();
+  cafe.add(plush);
+  clickables.push(plush);
+
+  // fairy lights across the ceiling
+  G.fairyLights = [];
+  for (let i = 0; i < 16; i++) {
+    const x = -7 + i * 0.9;
+    const y = 4.4 - Math.sin((i % 4) / 4 * Math.PI) * 0.35;
+    const bulb = sph(0.05, 0xffe066, { emissive: 0xffd93d, emissiveIntensity: 0.9 });
+    bulb.position.set(x, y, -2 + Math.sin(i * 1.3) * 2);
+    cafe.add(bulb);
+    G.fairyLights.push(bulb);
+  }
+
+  // shop-bought decorations appear here
+  G.decoMeshes = { lights: [], plants: [], paintings: [] };
+  // plants
+  for (const [px, pz] of [[-7.3, -6.3], [7.3, -6.3], [7.3, 6.3]]) {
+    const pot = cyl(0.25, 0.2, 0.35, 0xe05780); pot.position.set(px, 0.17, pz); cafe.add(pot);
+    const leaves = sph(0.4, 0x6bcb77); leaves.position.set(px, 0.75, pz); cafe.add(leaves);
+    leaves.visible = pot.visible = false;
+    G.decoMeshes.plants.push(pot, leaves);
+  }
+  // paintings on back wall
+  for (let i = 0; i < 3; i++) {
+    const frame = box(0.9, 0.7, 0.06, 0xc98f5d); frame.position.set(-2.5 + i * 2.5, 3, -6.85); cafe.add(frame);
+    const art = box(0.75, 0.55, 0.07, [0xffd9e3, 0x7fd8c0, 0xc9a8e8][i]); art.position.set(-2.5 + i * 2.5, 3, -6.83); cafe.add(art);
+    frame.visible = art.visible = false;
+    G.decoMeshes.paintings.push(frame, art);
+  }
+  // string lights (extra, near counter)
+  const stringLights = [];
+  for (let i = 0; i < 10; i++) {
+    const b = sph(0.04, [0xff8fab, 0x7fd8c0, 0xc9a8e8, 0xffe066][i % 4], { emissive: 0xffffff, emissiveIntensity: 0.5 });
+    b.position.set(-3 + i * 0.66, 2.6 - Math.sin((i % 3) / 3 * Math.PI) * 0.2, 0.9);
+    b.visible = false;
+    cafe.add(b);
+    stringLights.push(b);
+  }
+  G.decoMeshes.lights = stringLights;
+}
+
+function applyDecorations() {
+  for (const d of G.unlocked.decorations) {
+    if (d === 'plants') G.decoMeshes.plants.forEach(m => m.visible = true);
+    if (d === 'paintings') G.decoMeshes.paintings.forEach(m => m.visible = true);
+    if (d === 'lights') G.decoMeshes.lights.forEach(m => m.visible = true);
+  }
+}
+
+// ---------- guinea pigs ----------
+function buildGuineaPig(colorA=0xd9a86c, colorB=0xfff8f0) {
+  const g = new THREE.Group();
+  const body = sph(0.22, colorA); body.scale.set(1, 0.85, 1.3); body.position.y = 0.2; g.add(body);
+  const butt = sph(0.18, colorB); butt.position.set(0, 0.2, 0.18); g.add(butt);
+  const head = sph(0.16, colorB); head.position.set(0, 0.28, -0.24); g.add(head);
+  const nose = sph(0.04, 0xff8fa3); nose.position.set(0, 0.26, -0.38); g.add(nose);
+  for (const s of [-1, 1]) {
+    const ear = sph(0.05, colorA); ear.position.set(s * 0.11, 0.4, -0.22); g.add(ear);
+    const eye = sph(0.03, 0x2b1a2e, { roughness: 0.2 }); eye.position.set(s * 0.08, 0.32, -0.36); g.add(eye);
+  }
+  return g;
+}
+function addPigHat(pig, hat) {
+  if (pig.userData.hat) { pig.remove(pig.userData.hat); pig.userData.hat = null; }
+  if (!hat) return;
+  let h = null;
+  if (hat === 'sombrero') {
+    h = new THREE.Group();
+    const brim = cyl(0.2, 0.2, 0.03, 0xffd93d); h.add(brim);
+    const top = sph(0.1, 0xffd93d); top.position.y = 0.06; h.add(top);
+  } else if (hat === 'crown') {
+    h = new THREE.Group();
+    const band = cyl(0.12, 0.12, 0.08, 0xffd93d, { metalness: 0.6, roughness: 0.3 }); h.add(band);
+    for (let i = 0; i < 5; i++) {
+      const spike = cone(0.03, 0.08, 0xffd93d, { metalness: 0.6, roughness: 0.3 });
+      spike.position.set(Math.cos(i/5*Math.PI*2)*0.1, 0.08, Math.sin(i/5*Math.PI*2)*0.1); h.add(spike);
+    }
+  } else if (hat === 'beanie') {
+    h = new THREE.Group();
+    const cap = sph(0.13, 0x7fb3e8); cap.scale.y = 0.7; h.add(cap);
+    const pom = sph(0.05, 0xffffff); pom.position.y = 0.12; h.add(pom);
+  } else if (hat === 'party') {
+    h = cone(0.1, 0.22, 0xff8fab);
+    const pom = sph(0.04, 0xffe066); pom.position.y = 0.13; h.add(pom);
+  }
+  if (h) { h.position.set(0, 0.44, -0.22); pig.add(h); pig.userData.hat = h; }
+}
+
+const pigs = {};
+function buildPigs() {
+  // teacup pig: hidden in one of the teacups
+  pigs.teacup = buildGuineaPig(0x8b5a2b, 0xfff8f0);
+  pigs.teacup.visible = false;
+  cafe.add(pigs.teacup);
+  // tip jar pig
+  pigs.tip = buildGuineaPig(0xd9a86c, 0xfff8f0);
+  pigs.tip.scale.setScalar(0.7);
+  pigs.tip.position.set(1.6, 1.38, 1.6);
+  cafe.add(pigs.tip);
+  // wandering pig: roams the left end of the counter (out of the way of orders)
+  pigs.wanderer = buildGuineaPig(0xfff8f0, 0xd9a86c);
+  pigs.wanderer.scale.setScalar(0.85);
+  pigs.wanderer.position.set(-1.5, 1.13, 1.15);
+  cafe.add(pigs.wanderer);
+  pigs.wanderer.userData.dir = 1;
+  pigs.wanderer.userData.onClick = () => onWandererClick();
+  clickables.push(pigs.wanderer);
+  // counter-interrupting pig (days 13+)
+  pigs.interrupter = buildGuineaPig(0xc9a8e8, 0xfff8f0);
+  pigs.interrupter.visible = false;
+  cafe.add(pigs.interrupter);
+  pigs.interrupter.userData.onClick = () => onInterrupterClick();
+  clickables.push(pigs.interrupter);
+  applyPigHat();
+}
+function applyPigHat() {
+  if (pigs.wanderer) addPigHat(pigs.wanderer, G.equipped.pigHat);
+}
+
+// ---------- customers ----------
+const CUSTOMER_STYLES = [
+  { kind: 'kid',      skin: 0xffd4b8, shirt: 0xff8fab, hair: 0x8b5a2b, scale: 0.95, name: 'Little Boop' },
+  { kind: 'kid',      skin: 0xc98f5d, shirt: 0x7fb3e8, hair: 0x2b1a2e, scale: 0.95, name: 'Little Sprout' },
+  { kind: 'grandma',  skin: 0xffd4b8, shirt: 0xc9a8e8, hair: 0xe8e8e8, scale: 1.18, name: 'Granny Rose' },
+  { kind: 'grandma',  skin: 0xc98f5d, shirt: 0x7fd8c0, hair: 0xf5f5f5, scale: 1.18, name: 'Granny Mint' },
+  { kind: 'business', skin: 0xffd4b8, shirt: 0x4a5568, hair: 0x4a3520, scale: 1.3,  name: 'Mr. Briefcase' },
+  { kind: 'business', skin: 0xd9a86c, shirt: 0x2d3748, hair: 0x2b1a2e, scale: 1.3,  name: 'Ms. Deadline' },
+  { kind: 'animal',   skin: 0xd9a86c, shirt: 0xffb3c6, hair: 0xd9a86c, scale: 1.1,  name: 'Bunny in a Sweater', ears: 'bunny' },
+  { kind: 'animal',   skin: 0x8b5a2b, shirt: 0x7fd8c0, hair: 0x8b5a2b, scale: 1.18, name: 'Bear in a Sweater', ears: 'bear' },
+  { kind: 'animal',   skin: 0xf5f5f5, shirt: 0xffe066, hair: 0xf5f5f5, scale: 1.05, name: 'Cat in a Sweater', ears: 'cat' },
+];
+function buildCustomer(style) {
+  const g = new THREE.Group();
+  const s = style.scale;
+  const body = sph(0.32, style.shirt); body.scale.set(1, 1.15, 0.85); body.position.y = 0.55 * s; body.scale.multiplyScalar(s); g.add(body);
+  const head = sph(0.26, style.skin); head.position.y = 1.25 * s; head.scale.multiplyScalar(s); g.add(head);
+  // hair cap
+  if (style.kind !== 'animal') {
+    const hair = sph(0.27, style.hair); hair.scale.set(1, 0.7, 1); hair.position.y = 1.38 * s; hair.scale.multiplyScalar(s); g.add(hair);
+  }
+  // big Pixar eyes
+  for (const sd of [-1, 1]) {
+    const white = sph(0.06, 0xffffff, { roughness: 0.3 }); white.position.set(sd * 0.1 * s, 1.28 * s, -0.2 * s); white.scale.multiplyScalar(s); g.add(white);
+    const pupil = sph(0.028, 0x2b1a2e); pupil.position.set(0, 0, -0.045); white.add(pupil);
+  }
+  // smile
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 10, Math.PI), M(0x8b4a3a));
+  smile.position.set(0, 1.16 * s, -0.22 * s); smile.rotation.x = Math.PI; smile.scale.multiplyScalar(s); g.add(smile);
+  // ears for animals
+  if (style.ears === 'bunny') {
+    for (const sd of [-1, 1]) { const ear = sph(0.06, style.skin); ear.scale.set(0.6, 2.4, 0.6); ear.position.set(sd * 0.1 * s, 1.62 * s, 0); ear.scale.multiplyScalar(s); g.add(ear); }
+  } else if (style.ears === 'bear') {
+    for (const sd of [-1, 1]) { const ear = sph(0.08, style.skin); ear.position.set(sd * 0.2 * s, 1.45 * s, 0); ear.scale.multiplyScalar(s); g.add(ear); }
+  } else if (style.ears === 'cat') {
+    for (const sd of [-1, 1]) { const ear = cone(0.07, 0.14, style.skin); ear.position.set(sd * 0.16 * s, 1.48 * s, 0); ear.scale.multiplyScalar(s); g.add(ear); }
+  }
+  // grandma bun
+  if (style.kind === 'grandma') {
+    const bun = sph(0.12, style.hair); bun.position.set(0, 1.52 * s, 0.12 * s); bun.scale.multiplyScalar(s); g.add(bun);
+  }
+  // briefcase for business folks
+  if (style.kind === 'business') {
+    const bc = box(0.22, 0.16, 0.07, 0x8b5a2b); bc.position.set(0.35 * s, 0.35 * s, 0); bc.scale.multiplyScalar(s); g.add(bc);
+  }
+  g.userData.style = style;
+  return g;
+}
+
+// ---------- avatar preview (2D canvas, character creation) ----------
+const AVATAR_OPTIONS = {
+  hair:      { label: 'Hair', values: ['wavy auburn', 'straight black', 'curly blonde', 'pixie pink', 'braids brown', 'ponytail blue'] },
+  eyes:      { label: 'Eyes', values: ['green', 'brown', 'blue', 'hazel', 'violet'] },
+  brows:     { label: 'Eyebrows', values: ['thin', 'thick', 'arched', 'straight'] },
+  shadow:    { label: 'Eyeshadow', values: ['none', 'soft pink', 'lavender', 'mint', 'peach'] },
+  shirt:     { label: 'Shirt', values: ['cream', 'mint', 'coral', 'lavender', 'butter yellow'] },
+  earrings:  { label: 'Earrings', values: ['none', 'studs', 'hoops', 'stars', 'flowers'] },
+  dress:     { label: 'Dress', values: ['none', 'polka dot', 'floral', 'striped', 'solid'] },
+  shoes:     { label: 'Shoes', values: ['sneakers', 'flats', 'boots', 'sandals'] },
+  clip:      { label: 'Hair clip', values: ['none', 'bow', 'flower', 'star', 'butterfly'] },
+  necklace:  { label: 'Necklace', values: ['none', 'pearls', 'star pendant', 'rainbow beads'] },
+  bracelet:  { label: 'Bracelet', values: ['none', 'friendship', 'bangle', 'charm'] },
+  apron:     { label: 'Apron', values: ['pink', 'mint', 'lavender', 'sky blue', 'sunshine'] },
+};
+const AVATAR_COLORS = {
+  hair:   { 'wavy auburn': '#8b4a2b', 'straight black': '#2b2b30', 'curly blonde': '#f0d080', 'pixie pink': '#ff9fc8', 'braids brown': '#6b4a2a', 'ponytail blue': '#6a9fd8' },
+  eyes:   { green: '#4a9e4a', brown: '#6b4a2a', blue: '#4a7fd8', hazel: '#9a7a3a', violet: '#8a5ac8' },
+  shadow: { none: null, 'soft pink': '#ffc9d9', lavender: '#d8c9f0', mint: '#c9f0d9', peach: '#ffd9b8' },
+  shirt:  { cream: '#fff3e4', mint: '#b8e8d0', coral: '#ff9f8a', lavender: '#d8c9f0', 'butter yellow': '#ffe9a0' },
+  apron:  { pink: '#ffb3c6', mint: '#7fd8c0', lavender: '#c9a8e8', 'sky blue': '#7fb3e8', sunshine: '#ffe066' },
+};
+function defaultAvatar() {
+  return { name: '', hair: 0, eyes: 0, brows: 0, shadow: 0, shirt: 0, earrings: 0, dress: 0, shoes: 0, clip: 0, necklace: 0, bracelet: 0, apron: 0 };
+}
+// roundRect polyfill for older browsers
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath();
+    return this;
+  };
+}
+function drawAvatar(cvs, av) {
+  const ctx = cvs.getContext('2d');
+  const w = cvs.width, h = cvs.height;
+  ctx.clearRect(0, 0, w, h);
+  // background
+  ctx.fillStyle = '#fff0f5'; ctx.fillRect(0, 0, w, h);
+  const cx = w / 2;
+  const hairColor = AVATAR_COLORS.hair[AVATAR_OPTIONS.hair.values[av.hair]];
+  const eyeColor = AVATAR_COLORS.eyes[AVATAR_OPTIONS.eyes.values[av.eyes]];
+  const shadowColor = AVATAR_COLORS.shadow[AVATAR_OPTIONS.shadow.values[av.shadow]];
+  const shirtColor = AVATAR_COLORS.shirt[AVATAR_OPTIONS.shirt.values[av.shirt]];
+  const apronColor = AVATAR_COLORS.apron[AVATAR_OPTIONS.apron.values[av.apron]];
+  const dressStyle = AVATAR_OPTIONS.dress.values[av.dress];
+
+  // body: shirt + apron
+  ctx.fillStyle = dressStyle === 'none' ? shirtColor : shirtColor;
+  ctx.beginPath(); ctx.roundRect(cx - 52, 190, 104, 90, 24); ctx.fill();
+  if (dressStyle !== 'none') {
+    ctx.fillStyle = dressStyle === 'solid' ? '#ff8fab' : '#ffd9e3';
+    ctx.beginPath(); ctx.roundRect(cx - 56, 185, 112, 95, 24); ctx.fill();
+    if (dressStyle === 'polka dot') {
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 12; i++) { ctx.beginPath(); ctx.arc(cx - 44 + (i % 4) * 30, 200 + Math.floor(i / 4) * 26, 4, 0, 7); ctx.fill(); }
+    } else if (dressStyle === 'striped') {
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 5; i++) ctx.fillRect(cx - 56, 195 + i * 18, 112, 7);
+    } else if (dressStyle === 'floral') {
+      ctx.fillStyle = '#e05780';
+      for (let i = 0; i < 8; i++) { ctx.font = '10px sans-serif'; ctx.fillText('✿', cx - 44 + (i % 4) * 30, 205 + Math.floor(i / 4) * 30); }
+    }
+  }
+  // apron
+  ctx.fillStyle = apronColor;
+  ctx.beginPath(); ctx.roundRect(cx - 34, 210, 68, 70, 12); ctx.fill();
+  ctx.fillRect(cx - 20, 190, 40, 24);
+  // arms (+ bracelet)
+  for (const s of [-1, 1]) {
+    const ax = cx + s * 58;
+    ctx.fillStyle = shirtColor;
+    ctx.beginPath(); ctx.roundRect(ax - 9, 192, 18, 26, 8); ctx.fill();   // sleeve
+    ctx.fillStyle = '#ffd4b8';
+    ctx.beginPath(); ctx.roundRect(ax - 8, 214, 16, 44, 8); ctx.fill();   // arm
+  }
+  const bracelet = AVATAR_OPTIONS.bracelet.values[av.bracelet];
+  if (bracelet !== 'none') {
+    ctx.fillStyle = { friendship: '#e05780', bangle: '#ffd93d', charm: '#7fd8c0' }[bracelet];
+    ctx.beginPath(); ctx.roundRect(cx + 50, 244, 16, 7, 3); ctx.fill();
+  }
+  // shoes
+  ctx.fillStyle = ['#fff', '#e05780', '#8b5a2b', '#ffb380'][av.shoes];
+  ctx.beginPath(); ctx.roundRect(cx - 40, 272, 34, 10, 5); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(cx + 6, 272, 34, 10, 5); ctx.fill();
+
+  // head
+  ctx.fillStyle = '#ffd4b8';
+  ctx.beginPath(); ctx.arc(cx, 120, 58, 0, 7); ctx.fill();
+  // ears
+  ctx.beginPath(); ctx.arc(cx - 58, 122, 10, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 58, 122, 10, 0, 7); ctx.fill();
+  // earrings
+  const earring = AVATAR_OPTIONS.earrings.values[av.earrings];
+  if (earring !== 'none') {
+    ctx.fillStyle = '#ffd93d';
+    const draw = (x) => {
+      if (earring === 'studs') { ctx.beginPath(); ctx.arc(x, 130, 4, 0, 7); ctx.fill(); }
+      else if (earring === 'hoops') { ctx.beginPath(); ctx.arc(x, 134, 7, 0, 7); ctx.strokeStyle = '#ffd93d'; ctx.lineWidth = 3; ctx.stroke(); }
+      else if (earring === 'stars') { ctx.font = '12px sans-serif'; ctx.fillText('⭐', x - 6, 138); }
+      else { ctx.font = '12px sans-serif'; ctx.fillText('🌸', x - 6, 138); }
+    };
+    draw(cx - 58); draw(cx + 58);
+  }
+  // eyeshadow
+  if (shadowColor) {
+    ctx.fillStyle = shadowColor;
+    ctx.beginPath(); ctx.ellipse(cx - 22, 108, 13, 7, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 22, 108, 13, 7, 0, 0, 7); ctx.fill();
+  }
+  // eyes
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(cx + s * 22, 116, 12, 14, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = eyeColor;
+    ctx.beginPath(); ctx.arc(cx + s * 22, 118, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2b1a2e';
+    ctx.beginPath(); ctx.arc(cx + s * 22, 118, 3.5, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(cx + s * 22 - 2, 116, 1.8, 0, 7); ctx.fill();
+  }
+  // eyebrows
+  ctx.strokeStyle = hairColor; ctx.lineCap = 'round';
+  const brow = AVATAR_OPTIONS.brows.values[av.brows];
+  ctx.lineWidth = brow === 'thick' ? 5 : brow === 'thin' ? 2 : 3.5;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    if (brow === 'arched') ctx.arc(cx + s * 22, 108, 12, Math.PI * 1.15, Math.PI * 1.85);
+    else if (brow === 'straight') { ctx.moveTo(cx + s * 22 - 11, 100); ctx.lineTo(cx + s * 22 + 11, 100); }
+    else { ctx.moveTo(cx + s * 22 - 11, 102); ctx.quadraticCurveTo(cx + s * 22, 96, cx + s * 22 + 11, 102); }
+    ctx.stroke();
+  }
+  // nose + smile + blush
+  ctx.fillStyle = '#f0b090';
+  ctx.beginPath(); ctx.arc(cx, 132, 4, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#c86a5a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, 140, 14, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,143,171,.45)';
+  ctx.beginPath(); ctx.arc(cx - 38, 136, 8, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 38, 136, 8, 0, 7); ctx.fill();
+  // necklace
+  const necklace = AVATAR_OPTIONS.necklace.values[av.necklace];
+  if (necklace !== 'none') {
+    const cols = necklace === 'pearls' ? ['#ffffff']
+      : necklace === 'rainbow beads' ? ['#ff8fab', '#ffe066', '#7fd8c0', '#7fb3e8', '#c9a8e8']
+      : ['#ffd93d'];
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI * (0.3 + 0.4 * i / 6);
+      ctx.fillStyle = cols[i % cols.length];
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 20, 172 + Math.sin(a) * 16, 3.2, 0, 7); ctx.fill();
+    }
+    if (necklace === 'star pendant') { ctx.font = '12px sans-serif'; ctx.fillText('⭐', cx - 6, 198); }
+  }
+
+  // hair styles
+  ctx.fillStyle = hairColor;
+  const hairName = AVATAR_OPTIONS.hair.values[av.hair];
+  ctx.beginPath(); ctx.arc(cx, 100, 60, Math.PI, 0); ctx.fill();  // base cap
+  if (hairName === 'wavy auburn') {
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + s * 52, 140, 14, 46, 0, 0, 7); ctx.fill(); }
+  } else if (hairName === 'straight black') {
+    ctx.fillRect(cx - 60, 90, 120, 70);
+    ctx.fillStyle = '#ffd4b8'; ctx.fillRect(cx - 44, 96, 88, 80);  // face hole
+    ctx.fillStyle = hairColor; ctx.beginPath(); ctx.arc(cx, 96, 60, Math.PI, 0); ctx.fill();
+  } else if (hairName === 'curly blonde') {
+    for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.arc(cx - 56 + i * 16, 66 + (i % 2) * 6, 14, 0, 7); ctx.fill(); }
+    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(cx + s * 56, 110 + i * 22, 12, 0, 7); ctx.fill(); }
+  } else if (hairName === 'pixie pink') {
+    for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(cx - 45 + i * 18, 62, 13, 0, 7); ctx.fill(); }
+  } else if (hairName === 'braids brown') {
+    for (const s of [-1, 1]) for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(cx + s * 50, 130 + i * 20, 10 - i, 0, 7); ctx.fill(); }
+  } else if (hairName === 'ponytail blue') {
+    ctx.beginPath(); ctx.ellipse(cx + 52, 100, 16, 40, -0.4, 0, 7); ctx.fill();
+  }
+  // hair clip
+  const clip = AVATAR_OPTIONS.clip.values[av.clip];
+  if (clip !== 'none') {
+    ctx.font = '22px sans-serif';
+    const glyph = { bow: '🎀', flower: '🌸', star: '⭐', butterfly: '🦋' }[clip];
+    ctx.fillText(glyph, cx + 30, 70);
+  }
+}
+
+// ---------- menu & orders ----------
+const MENU = {
+  cupcake: { label: 'Cupcake', emoji: '🧁', kinds: [
+    { id: 'pink', name: 'pink cupcake' }, { id: 'blue', name: 'blue cupcake' },
+    { id: 'choc', name: 'chocolate cupcake' }, { id: 'vanilla', name: 'vanilla cupcake' },
+    { id: 'lemon', name: 'lemon cupcake' } ],
+    mods: [{ id: 'sprinkles', name: 'sprinkles', default: true }, { id: 'gf', name: 'gluten-free', default: false }] },
+  cookie: { label: 'Cookie', emoji: '🍪', kinds: [
+    { id: 'sugar', name: 'sugar cookie' }, { id: 'chocchip', name: 'choc chip cookie' } ],
+    mods: [{ id: 'gf', name: 'gluten-free', default: false }] },
+  tea: { label: 'Tea', emoji: '🍵', kinds: [
+    { id: 'chamomile', name: 'chamomile tea' }, { id: 'green', name: 'green tea' }, { id: 'black', name: 'black tea' } ],
+    mods: [{ id: 'honey', name: 'honey', default: false }] },
+  coffee: { label: 'Coffee', emoji: '☕', kinds: [
+    { id: 'coffee', name: 'coffee' }, { id: 'hotcocoa', name: 'hot cocoa' } ],
+    mods: [{ id: 'cream', name: 'whipped cream', default: false }] },
+  icecream: { label: 'Ice Cream', emoji: '🍦', kinds: [
+    { id: 'vanilla', name: 'vanilla' }, { id: 'chocolate', name: 'chocolate' }, { id: 'strawberry', name: 'strawberry' },
+    { id: 'mint', name: 'mint' }, { id: 'blueberry', name: 'blueberry' }, { id: 'mango', name: 'mango' },
+    { id: 'cookies', name: 'cookies & cream' }, { id: 'rainbow', name: 'rainbow' } ],
+    mods: [{ id: 'cone', name: 'in a cone', default: true }, { id: 'sprinkles', name: 'sprinkles', default: false }] },
+  // unlockable
+  macaron: { label: 'Macaron', emoji: '🍬', kinds: [
+    { id: 'pink', name: 'pink macaron' }, { id: 'mint', name: 'mint macaron' }, { id: 'lemon', name: 'lemon macaron' } ],
+    mods: [{ id: 'gf', name: 'gluten-free', default: false }], locked: 'macarons' },
+  scone: { label: 'Scone', emoji: '🥐', kinds: [
+    { id: 'blueberry', name: 'blueberry scone' }, { id: 'plain', name: 'butter scone' } ],
+    mods: [{ id: 'jam', name: 'jam', default: false }, { id: 'gf', name: 'gluten-free', default: false }], locked: 'scones' },
+  sundae: { label: 'Sundae', emoji: '🍨', kinds: [
+    { id: 'choc', name: 'chocolate sundae' }, { id: 'berry', name: 'berry sundae' } ],
+    mods: [{ id: 'cherry', name: 'cherry on top', default: true }], locked: 'sundaes' },
+};
+function availableCategories() {
+  return Object.keys(MENU).filter(k => !MENU[k].locked || G.unlocked.menu.includes(MENU[k].locked));
+}
+function itemText(item) {
+  let t = MENU[item.cat].kinds.find(k => k.id === item.kind).name;
+  if (item.mods.includes('gf')) t = 'gluten-free ' + t;
+  for (const m of MENU[item.cat].mods) {
+    if (m.id === 'gf') continue;                            // handled above
+    if (item.cat === 'icecream' && m.id === 'cone') continue;  // handled below
+    const on = item.mods.includes(m.id);
+    if (on && !m.default) t += ' with ' + m.name;
+    if (!on && m.default) t += ', no ' + m.name;
+  }
+  if (item.cat === 'icecream') t += item.mods.includes('cone') ? ' in a cone' : ' in a cup';
+  return t;
+}
+function itemEmoji(item) { return MENU[item.cat].emoji; }
+
+function genOrder(day) {
+  const cats = availableCategories();
+  const pick = arr => arr[(Math.random() * arr.length) | 0];
+  const items = [];
+  const itemCount = day <= 3 ? 1 : day <= 6 ? (Math.random() < 0.7 ? 2 : 1) : 2;
+  for (let i = 0; i < itemCount; i++) {
+    const cat = pick(cats);
+    const def = MENU[cat];
+    const kind = pick(def.kinds).id;
+    const item = { cat, kind, mods: def.mods.filter(m => m.default).map(m => m.id) };
+    // days 7+: modifiers get shuffled ("no sprinkles", "with honey")
+    if (day >= 7) {
+      for (const m of def.mods) {
+        if (m.id === 'gf' && day < 10) continue;   // gluten-free requests arrive day 10+
+        if (Math.random() < (m.id === 'gf' ? 0.3 : 0.4)) {
+          if (item.mods.includes(m.id)) item.mods = item.mods.filter(x => x !== m.id);
+          else item.mods.push(m.id);
+        }
+      }
+    }
+    items.push(item);
+  }
+  return items;
+}
+function orderText(items) {
+  return items.map((it, i) => (i === 0 ? 'One ' : 'and a ') + itemText(it)).join(' ').replace('One', 'One');
+}
+
+// ---------- customers ----------
+const COUNTER_SPOTS = [[-2.4, -0.2], [0, -0.35], [2.4, -0.2]];  // [x, z] in front of the counter
+let customerIdc = 0;
+
+function spawnCustomer() {
+  const style = CUSTOMER_STYLES[(Math.random() * CUSTOMER_STYLES.length) | 0];
+  const obj = buildCustomer(style);
+  obj.position.set(0, 0, 7.5);   // at the door
+  scene.add(obj);
+  const c = {
+    id: customerIdc++,
+    obj, style,
+    state: 'walking',   // walking | waiting | reading | asleep | leaving
+    order: genOrder(G.day),
+    patience: 0,
+    spot: null,
+    bubble: null,
+    bobPhase: Math.random() * 6,
+  };
+  // find a free counter spot
+  for (const s of COUNTER_SPOTS) {
+    if (!G.customers.some(o => o.spot === s && o.state !== 'leaving')) { c.spot = s; break; }
+  }
+  if (!c.spot) c.spot = COUNTER_SPOTS[(Math.random() * 3) | 0];
+  // path: enter the door, slip down a side aisle, then approach the counter
+  // (so they never walk through the player standing behind the till)
+  const sideX = c.spot[0] < -0.5 ? -4.6 : c.spot[0] > 0.5 ? 4.6 : (Math.random() < 0.5 ? -4.6 : 4.6);
+  c.waypoints = [[sideX, 5.2], [sideX, 0.5], [c.spot[0], c.spot[1]]];
+  c.bubble = document.createElement('div');
+  c.bubble.className = 'bubble hidden';
+  document.body.appendChild(c.bubble);
+  obj.userData.onClick = () => onCustomerClick(c);
+  clickables.push(obj);
+  G.customers.push(c);
+  AudioSys.bell();
+  return c;
+}
+
+function updateCustomers(dt, now) {
+  for (let i = G.customers.length - 1; i >= 0; i--) {
+    const c = G.customers[i];
+    const o = c.obj;
+    if (c.state === 'walking' || c.state === 'leaving') {
+      if (c.state === 'leaving' && !c.leavePath) {
+        const sideX = (o.position.x <= 0 ? -1 : 1) * 4.6;
+        c.leavePath = [[sideX, 0.5], [sideX, 5.2], [0, 7.4]];
+      }
+      const path = c.state === 'walking' ? c.waypoints : c.leavePath;
+      const tgt = path[0];
+      const target = new THREE.Vector3(tgt[0], 0, tgt[1]);
+      const d = target.clone().sub(o.position); d.y = 0;
+      if (d.length() < 0.2) {
+        path.shift();
+        if (!path.length) {
+          if (c.state === 'walking') {
+            c.state = 'waiting';
+            o.position.y = 0;
+            o.lookAt(camera.position.x, o.position.y, camera.position.z);
+            o.rotateY(Math.PI);   // face features live on local -z
+            // save orientation: the idle sway below must be applied via quaternion,
+            // because a direct euler write (rotation.z = ...) would clobber the
+            // lookAt rotation (its euler form is (PI,0,PI)) and flip the customer over
+            c.baseQuat = o.quaternion.clone();
+            showBubble(c);
+          } else {
+            scene.remove(o);
+            c.bubble.remove();
+            G.customers.splice(i, 1);
+          }
+          continue;
+        }
+      } else {
+        d.normalize();
+        o.position.addScaledVector(d, (c.state === 'walking' ? 2.2 : 2.6) * dt);
+        o.lookAt(o.position.x + d.x, o.position.y, o.position.z + d.z);
+        o.position.y = Math.abs(Math.sin(now * 0.009 + c.bobPhase)) * 0.07;  // happy bounce-walk
+      }
+    } else if (c.state === 'waiting' || c.state === 'reading' || c.state === 'asleep') {
+      // gentle idle sway — quaternion-based so the lookAt facing is preserved
+      if (c.baseQuat) {
+        o.quaternion.copy(c.baseQuat);
+        o.rotateZ(Math.sin(now * 0.002 + c.bobPhase) * 0.03);
+      }
+      // patience: never angry — they read, then nap
+      c.patience += dt;
+      if (c.state === 'waiting' && c.patience > 25) { c.state = 'reading'; showBubble(c); }
+      else if (c.state === 'reading' && c.patience > 45) { c.state = 'asleep'; showBubble(c); AudioSys.snore(); }
+      updateBubblePos(c);
+    }
+  }
+}
+
+function showBubble(c) {
+  if (c.state === 'asleep') {
+    c.bubble.innerHTML = '<span class="zzz">💤 Zzz…</span>';
+  } else if (c.state === 'reading') {
+    c.bubble.innerHTML = '📖 <span class="book">' + orderText(c.order) + '</span><br><span class="book" style="font-size:11px;">(no rush!)</span>';
+  } else {
+    c.bubble.innerHTML = c.order.map(it => itemEmoji(it) + ' ' + itemText(it)).join('<br>');
+  }
+  c.bubble.classList.remove('hidden');
+  updateBubblePos(c);
+}
+function updateBubblePos(c) {
+  const v = c.obj.position.clone();
+  v.y += 1.9 * c.obj.userData.style.scale;
+  v.project(camera);
+  if (v.z > 1) { c.bubble.classList.add('hidden'); return; }
+  c.bubble.classList.remove('hidden');
+  c.bubble.style.left = ((v.x * 0.5 + 0.5) * window.innerWidth) + 'px';
+  c.bubble.style.top = ((-v.y * 0.5 + 0.5) * window.innerHeight - 12) + 'px';
+}
+
+// ---------- assembly tray ----------
+function renderIngredientPanel() {
+  const wrap = document.getElementById('ingredients');
+  wrap.innerHTML = '';
+  for (const cat of availableCategories()) {
+    const def = MENU[cat];
+    const btn = document.createElement('button');
+    btn.className = 'ing-btn cat';
+    btn.textContent = def.emoji + ' ' + def.label;
+    btn.onclick = () => { AudioSys.click(); showKinds(cat); };
+    wrap.appendChild(btn);
+  }
+}
+function showKinds(cat) {
+  const wrap = document.getElementById('ingredients');
+  wrap.innerHTML = '';
+  const back = document.createElement('button');
+  back.className = 'ing-btn';
+  back.textContent = '← back';
+  back.onclick = () => { AudioSys.click(); renderIngredientPanel(); };
+  wrap.appendChild(back);
+  for (const k of MENU[cat].kinds) {
+    const btn = document.createElement('button');
+    btn.className = 'ing-btn';
+    btn.textContent = MENU[cat].emoji + ' ' + k.name;
+    btn.onclick = () => addToTray(cat, k.id);
+    wrap.appendChild(btn);
+  }
+}
+function addToTray(cat, kind) {
+  const def = MENU[cat];
+  G.tray.push({ cat, kind, mods: def.mods.filter(m => m.default).map(m => m.id) });
+  AudioSys.add();
+  renderTray();
+}
+function renderTray() {
+  const tray = document.getElementById('tray');
+  tray.innerHTML = '<span class="traylabel">Tray:</span>';
+  if (!G.tray.length) {
+    tray.innerHTML += '<span style="color:#c9a8b8; font-size:13px;">tap ingredients below to build the order</span>';
+    return;
+  }
+  G.tray.forEach((item, i) => {
+    const el = document.createElement('span');
+    el.className = 'tray-item';
+    el.textContent = itemEmoji(item) + ' ' + itemText(item) + ' ✕';
+    el.title = 'tap to remove';
+    el.onclick = () => { G.tray.splice(i, 1); AudioSys.click(); renderTray(); };
+    tray.appendChild(el);
+    // modifier chips
+    for (const m of MENU[item.cat].mods) {
+      if (m.id === 'gf' && G.day < 10) continue;   // gluten-free unlocks as a request on day 10
+      const on = item.mods.includes(m.id);
+      chip.className = 'tray-item';
+      chip.style.borderColor = on ? '#9a6cc8' : '#d9c9d9';
+      chip.style.color = on ? '#9a6cc8' : '#b8a8b8';
+      chip.style.fontSize = '11px';
+      chip.textContent = (on ? '✓ ' : '✗ ') + m.name;
+      chip.onclick = () => {
+        if (on) item.mods = item.mods.filter(x => x !== m.id);
+        else item.mods.push(m.id);
+        AudioSys.click();
+        renderTray();
+      };
+      tray.appendChild(chip);
+    }
+  });
+}
+
+// ---------- serving ----------
+function ordersMatch(tray, order) {
+  if (tray.length !== order.length) return false;
+  const key = it => it.cat + '|' + it.kind + '|' + it.mods.slice().sort().join(',');
+  const a = tray.map(key).sort(), b = order.map(key).sort();
+  return a.every((k, i) => k === b[i]);
+}
+function onCustomerClick(c) {
+  if (G.state !== 'day') return;
+  if (c.state === 'asleep') {
+    // gentle wake-up
+    c.state = 'waiting'; c.patience = 10;
+    showBubble(c);
+    toast('You gently wake ' + c.style.name + ' 😊');
+    AudioSys.click();
+    return;
+  }
+  if (!G.tray.length) { toast('Build their order on the tray first!'); AudioSys.click(); return; }
+  if (ordersMatch(G.tray, c.order)) {
+    const base = 20 + c.order.length * 15;
+    const tipBonus = c.state === 'waiting' ? 10 : 5;   // faster = bigger tip (but never punished)
+    const earned = base + tipBonus;
+    G.coins += earned;
+    G.servedToday++;
+    AudioSys.serve();
+    setTimeout(() => AudioSys.coin(), 300);
+    toast('😊 ' + c.style.name + ' loves it! +🪙' + earned);
+    confettiAtCustomer(c);
+    c.state = 'leaving';
+    c.bubble.classList.add('hidden');
+    G.tray = [];
+    renderTray();
+    renderIngredientPanel();
+    updateHUD();
+    maybeTipJar();
+    if (G.servedToday >= G.totalToday) setTimeout(endDay, 1200);
+  } else {
+    AudioSys.oops();
+    toast('🤔 Hmm, that\'s not quite what they asked for… check the bubble!');
+  }
+}
+function confettiAtCustomer(c) {
+  for (let i = 0; i < 14; i++) {
+    const p = box(0.05, 0.05, 0.02, [0xff8fab, 0xffe066, 0x7fd8c0, 0xc9a8e8][i % 4], { emissive: 0xffffff, emissiveIntensity: 0.3 });
+    p.position.copy(c.obj.position).add(new THREE.Vector3(0, 1.6, 0));
+    p.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 3 + 1.5, (Math.random() - 0.5) * 3);
+    p.userData.life = 1.2;
+    scene.add(p);
+    fx.push(p);
+  }
+}
+const fx = [];
+function updateFX(dt) {
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const p = fx[i];
+    p.userData.life -= dt;
+    if (p.userData.life <= 0) { scene.remove(p); fx.splice(i, 1); continue; }
+    p.userData.vel.y -= 8 * dt;
+    p.position.addScaledVector(p.userData.vel, dt);
+    p.rotation.x += dt * 6; p.rotation.y += dt * 5;
+  }
+}
+
+// ---------- guinea pig antics ----------
+const PLUSH_TIPS = [
+  'Read the speech bubble, then build the order on your tray below!',
+  'Tap a category, pick a treat, then tap the customer to serve. Easy-peasy!',
+  'The little chips next to tray items add extras — honey, jam, sprinkles…',
+  'No rush, ever! Patient customers just read a book or take a tiny nap. 💤',
+  'Every day a real piggy hides in a teacup. Find him for bonus coins! 🐹',
+  'After happy customers, tap the tip-jar piggy — he shares the tips!',
+];
+function onPlushClick() {
+  if (G.state !== 'day') return;
+  AudioSys.wheek();
+  toast('🧸 Sir Fluffington says: "' + PLUSH_TIPS[G.plushTipIdx++ % PLUSH_TIPS.length] + '"');
+}
+function onTeacupClick(i) {
+  if (G.state !== 'day') return;
+  if (!G.teacupFound && G.teacupPigCup === i) {
+    G.teacupFound = true;
+    pigs.teacup.visible = true;
+    pigs.teacup.position.copy(G.teacups[i].position).add(new THREE.Vector3(0, 0.12, 0));
+    pigs.teacup.scale.setScalar(0.6);
+    AudioSys.wheek();
+    const bonus = 25;
+    G.coins += bonus;
+    toast('🐹 You found Nibbles in the teacup! +🪙' + bonus);
+    updateHUD();
+  } else {
+    AudioSys.click();
+    toast('Just tea in this one 🍵');
+  }
+}
+function onTipJarClick() {
+  if (G.state !== 'day') return;
+  if (G.tipReady) {
+    G.tipReady = false;
+    const tip = 10 + ((Math.random() * 15) | 0);
+    G.coins += tip;
+    AudioSys.coin();
+    toast('🐹 Tipsy the pig shares the tips! +🪙' + tip);
+    updateHUD();
+  } else {
+    AudioSys.wheek();
+    toast('🐹 Tipsy guards the jar… tips appear after happy customers!');
+  }
+}
+function maybeTipJar() {
+  if (Math.random() < 0.5) {
+    G.tipReady = true;
+    // jar pig wiggles to hint
+    pigs.tip.userData.wiggleUntil = performance.now() + 4000;
+  }
+}
+function onWandererClick() {
+  AudioSys.wheek();
+  toast('🐹 Waffles says hi! (wheek!)');
+}
+function onInterrupterClick() {
+  if (!G.pigOnCounter) return;
+  G.pigOnCounter = false;
+  pigs.interrupter.visible = false;
+  document.getElementById('assembly').style.opacity = '1';
+  document.getElementById('assembly').style.pointerEvents = 'auto';
+  AudioSys.wheek();
+  toast('🐹 Crumbs scampered off with a cookie crumb!');
+}
+function maybePigInterrupt(dt) {
+  if (G.day < 13 || G.state !== 'day') return;
+  if (G.pigOnCounter) return;
+  if (Math.random() < dt * 0.04) {
+    G.pigOnCounter = true;
+    pigs.interrupter.visible = true;
+    pigs.interrupter.position.set((Math.random() - 0.5) * 2, 1.13, 1.5);
+    // pig blocks the assembly panel until tapped
+    document.getElementById('assembly').style.opacity = '0.45';
+    document.getElementById('assembly').style.pointerEvents = 'none';
+    AudioSys.wheek();
+    toast('🐹 Crumbs is ON THE COUNTER! Tap him to shoo!');
+  }
+}
+
+// ---------- clicking (raycast) ----------
+const raycaster = new THREE.Raycaster();
+const clickPos = new THREE.Vector2();
+canvas.addEventListener('pointerup', e => {
+  if (dragMoved > 8) return;   // was a look-drag, not a click
+  if (G.state !== 'day') return;
+  clickPos.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(clickPos, camera);
+  const hits = raycaster.intersectObjects(clickables, true);
+  for (const h of hits) {
+    let o = h.object;
+    while (o && !o.userData.onClick) o = o.parent;
+    if (o && o.userData.onClick) { o.userData.onClick(); return; }
+  }
+});
+
+// ---------- toast + HUD ----------
+let toastTimer = null;
+function toast(text) {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.style.opacity = '0', 2400);
+}
+function updateHUD() {
+  document.getElementById('hud-day').textContent = 'Day ' + G.day;
+  document.getElementById('hud-customers').textContent = '😊 ' + G.servedToday + '/' + G.totalToday;
+  document.getElementById('hud-coins').textContent = '🪙 ' + G.coins;
+}
+
+// ---------- screens ----------
+function show(id) {
+  for (const s of ['title-screen','charcreate-screen','briefing-screen','dayend-screen','shop-screen','minigame-screen','victory-screen'])
+    document.getElementById(s).classList.add('hidden');
+  if (id) document.getElementById(id).classList.remove('hidden');
+  document.getElementById('hud').classList.toggle('hidden', id !== null);
+  document.getElementById('assembly').classList.toggle('hidden', id !== null);
+  document.getElementById('mute-btn').classList.remove('hidden');
+}
+
+// ---------- briefings ----------
+const BRIEFINGS = {
+  1:  ['👵', 'Mrs. Buttercup', 'Welcome, dear! Today is easy-peasy: customers want ONE thing each. Tap a category below, pick what they ask for, then tap the customer to serve. Keep an eye on the teacups… Nibbles hides in them! And if you ever need a hint, tap Sir Fluffington, the stuffed piggy on the counter.'],
+  2:  ['👵', 'Mrs. Buttercup', 'Lovely work yesterday, dear! Same thing today — one treat per customer. Remember: nobody minds waiting here. They have books!'],
+  4:  ['🐹', 'Pip', 'Pip here! Mrs. B says customers today want TWO things sometimes. Two! I dropped my tray just hearing that. You\'ve got this!'],
+  7:  ['🎵', 'Marigold', 'La la la~ oh hi! Today people get PICKY — "no sprinkles", "tea with honey". Check the little chips on your tray to add or remove extras!'],
+  10: ['🤫', 'Theo', '...hey. Quiet tip: today several customers come at ONCE. Stay calm. Build one order at a time. Oh — some folks ask for GLUTEN-FREE treats now. There\'s a chip for it on your tray. You\'re better at this than you think.'],
+  13: ['🐹', 'Pip', 'BAD NEWS. Crumbs the guinea pig learned he can jump ON the counter. He\'ll block your ingredients! Just tap him to shoo him off. He thinks it\'s a game. It IS a game.'],
+  15: ['👵', 'Mrs. Buttercup', 'It\'s FESTIVAL DAY, dear! The whole town is coming. Everything at once — combos, crowds, Crumbs. Don\'t worry about speed; just keep smiling. I believe in you!'],
+};
+function showBriefing() {
+  G.totalToday = customersForDay(G.day);
+  const b = BRIEFINGS[G.day] || ['👵', 'Mrs. Buttercup', 'Another lovely day at the cafe, dear! ' + G.totalToday + ' customers today.'];
+  document.getElementById('briefing-title').textContent = 'Day ' + G.day;
+  document.getElementById('briefing-face').textContent = b[0];
+  document.getElementById('briefing-who').textContent = b[1];
+  document.getElementById('briefing-text').textContent = b[2];
+  show('briefing-screen');
+  G.state = 'briefing';
+}
+
+// ---------- day flow ----------
+function customersForDay(day) {
+  if (day === 15) return 10;   // Festival Day: the whole town shows up!
+  return Math.min(9, 3 + Math.ceil(day / 2));
+}
+function startDay() {
+  G.state = 'day';
+  G.servedToday = 0;
+  G.totalToday = customersForDay(G.day);
+  G.tray = [];
+  G.teacupFound = false;
+  G.teacupPigCup = (Math.random() * 3) | 0;
+  G.pigOnCounter = false;
+  pigs.teacup.visible = false;
+  pigs.interrupter.visible = false;
+  document.getElementById('assembly').style.opacity = '1';
+  document.getElementById('assembly').style.pointerEvents = 'auto';
+  // clear old customers
+  for (const c of G.customers) { scene.remove(c.obj); c.bubble.remove(); }
+  G.customers = [];
+  renderTray();
+  renderIngredientPanel();
+  show(null);
+  updateHUD();
+  // stagger arrivals
+  const simultaneous = G.day >= 15 ? 3 : G.day >= 10 ? 2 : 1;
+  let spawned = 0;
+  const spawnNext = () => {
+    if (G.state !== 'day') return;
+    if (spawned >= G.totalToday) return;
+    spawnCustomer();
+    spawned++;
+    const delay = spawned < simultaneous ? 800 : 4000 + Math.random() * Math.max(2000, 9000 - G.day * 400);
+    G.spawnTimer = setTimeout(spawnNext, delay);
+  };
+  spawnNext();
+}
+function endDay() {
+  if (G.state !== 'day') return;
+  G.state = 'dayend';
+  clearTimeout(G.spawnTimer);
+  AudioSys.fanfare();
+  document.getElementById('dayend-title').textContent = 'Day ' + G.day + ' Complete!';
+  document.getElementById('dayend-stats').textContent =
+    'You served ' + G.servedToday + ' happy customers and have 🪙' + G.coins + ' coins!';
+  Save.write();
+  show('dayend-screen');
+}
+function nextDay() {
+  G.day++;
+  Save.write();
+  // cutscenes after days 5 and 10
+  if (G.day === 6) playCutscene('pip', showBriefing);
+  else if (G.day === 11) playCutscene('theo', showBriefing);
+  else showBriefing();
+}
+
+// ---------- shop ----------
+const SHOP_ITEMS = [
+  { id: 'sombrero', cat: 'pigHats', emoji: '👒', name: 'Pig Sombrero', price: 60, desc: 'Waffles wears it proudly' },
+  { id: 'crown',    cat: 'pigHats', emoji: '👑', name: 'Pig Crown', price: 120, desc: 'royalty among rodents' },
+  { id: 'beanie',   cat: 'pigHats', emoji: '🧢', name: 'Pig Beanie', price: 80, desc: 'cozy little head' },
+  { id: 'party',    cat: 'pigHats', emoji: '🎉', name: 'Pig Party Hat', price: 100, desc: 'every day is a party' },
+  { id: 'macarons', cat: 'menu', emoji: '🍬', name: 'Macarons', price: 150, desc: 'new menu item!' },
+  { id: 'scones',   cat: 'menu', emoji: '🥐', name: 'Scones', price: 150, desc: 'new menu item!' },
+  { id: 'sundaes',  cat: 'menu', emoji: '🍨', name: 'Sundaes', price: 200, desc: 'new menu item!' },
+  { id: 'plants',   cat: 'decorations', emoji: '🪴', name: 'Cafe Plants', price: 90, desc: 'green and leafy' },
+  { id: 'paintings', cat: 'decorations', emoji: '🖼', name: 'Wall Paintings', price: 110, desc: 'fancy art' },
+  { id: 'lights',   cat: 'decorations', emoji: '✨', name: 'String Lights', price: 130, desc: 'twinkle twinkle' },
+];
+function openShop() {
+  G.state = 'shop';
+  document.getElementById('shop-coins').textContent = '🪙 ' + G.coins;
+  const grid = document.getElementById('shop-grid');
+  grid.innerHTML = '';
+  for (const item of SHOP_ITEMS) {
+    const owned = G.unlocked[item.cat].includes(item.id);
+    const afford = G.coins >= item.price;
+    const el = document.createElement('div');
+    el.className = 'shop-item' + (owned ? ' owned' : !afford ? ' cant' : '');
+    el.innerHTML = '<div class="emoji">' + item.emoji + '</div><div class="nm">' + item.name + '</div>' +
+      '<div style="font-size:11px; color:#a06c8a;">' + item.desc + '</div>' +
+      '<div class="pr">' + (owned ? 'OWNED ✓' : '🪙 ' + item.price) + '</div>';
+    if (!owned && afford) {
+      el.onclick = () => {
+        G.coins -= item.price;
+        G.unlocked[item.cat].push(item.id);
+        if (item.cat === 'pigHats') G.equipped.pigHat = item.id;
+        AudioSys.coin();
+        applyPigHat();
+        applyDecorations();
+        Save.write();
+        openShop();
+      };
+    }
+    grid.appendChild(el);
+  }
+  show('shop-screen');
+}
+
+// ---------- mini-games ----------
+let mgTimer = null, mgIntervals = [];
+function openFeedGame() {
+  mgIntervals.forEach(clearInterval); mgIntervals = [];
+  G.state = 'minigame';
+  document.getElementById('mg-title').textContent = 'Feed the Guinea Pigs!';
+  document.getElementById('mg-desc').textContent = 'Tap a veggie, then tap a piggy! 30 seconds. Each feeding = 🪙5.';
+  const area = document.getElementById('mg-area');
+  const controls = document.getElementById('mg-controls');
+  area.innerHTML = '';
+  controls.innerHTML = '';
+  let fed = 0;
+  const pigEls = [];
+  for (let i = 0; i < 3; i++) {
+    const p = document.createElement('div');
+    p.className = 'mg-pig';
+    p.textContent = '🐹';
+    p.style.left = (15 + i * 32) + '%';
+    p.style.top = (30 + (i % 2) * 40) + '%';
+    area.appendChild(p);
+    pigEls.push(p);
+    // pigs wander
+    p._wander = setInterval(() => {
+      p.style.left = (8 + Math.random() * 80) + '%';
+      p.style.top = (15 + Math.random() * 65) + '%';
+    }, 1800 + i * 400);
+    mgIntervals.push(p._wander);
+  }
+  let selectedVeggie = null;
+  for (const v of ['🥕', '🥬', '🥒', '🌽']) {
+    const b = document.createElement('button');
+    b.className = 'mg-pick';
+    b.textContent = v;
+    b.onclick = () => {
+      controls.querySelectorAll('.mg-pick').forEach(x => x.classList.remove('sel'));
+      b.classList.add('sel');
+      selectedVeggie = v;
+      AudioSys.click();
+    };
+    controls.appendChild(b);
+  }
+  for (const p of pigEls) {
+    p.onclick = () => {
+      if (!selectedVeggie) { toast('Pick a veggie first!'); return; }
+      fed++;
+      G.coins += 5;
+      AudioSys.wheek();
+      document.getElementById('mg-score').textContent = 'Fed: ' + fed + ' (+🪙' + fed * 5 + ')';
+      p.style.transform = 'scale(1.3)';
+      setTimeout(() => p.style.transform = '', 200);
+      updateHUD();
+    };
+  }
+  document.getElementById('mg-score').textContent = 'Fed: 0';
+  clearTimeout(mgTimer);
+  mgTimer = setTimeout(() => {
+    toast('Time! The piggies are full and happy 🐹💛');
+    pigEls.forEach(p => clearInterval(p._wander));
+  }, 30000);
+  show('minigame-screen');
+}
+function openCupcakeGame() {
+  G.state = 'minigame';
+  document.getElementById('mg-title').textContent = 'Decorate a Cupcake!';
+  document.getElementById('mg-desc').textContent = 'Make the prettiest cupcake for the display case. Mrs. Buttercup pays 🪙30 for each masterpiece!';
+  const area = document.getElementById('mg-area');
+  const controls = document.getElementById('mg-controls');
+  area.innerHTML = '';
+  controls.innerHTML = '';
+  const preview = document.createElement('div');
+  preview.style.cssText = 'text-align:center; padding-top:30px;';
+  area.appendChild(preview);
+  const state = { frosting: '#ff8fab', sprinkles: false, topper: '🍒' };
+  function draw() {
+    preview.innerHTML =
+      '<div style="font-size:70px;">🧁</div>' +
+      '<div style="margin-top:-58px; font-size:34px; color:' + state.frosting + '; text-shadow:0 0 6px #fff;">●●●</div>' +
+      '<div style="margin-top:-30px; font-size:18px;">' + (state.sprinkles ? '🌈' : '') + state.topper + '</div>';
+  }
+  const rows = [
+    { label: 'Frosting', picks: [['#ff8fab', 'pink'], ['#7fb3e8', 'blue'], ['#7fd8c0', 'mint'], ['#ffe066', 'lemon']], set: v => state.frosting = v },
+    { label: 'Sprinkles', picks: [[true, '🌈 yes'], [false, 'no']], set: v => state.sprinkles = v },
+    { label: 'Topper', picks: [['🍒', '🍒'], ['🍓', '🍓'], ['⭐', '⭐'], ['🐹', '🐹']], set: v => state.topper = v },
+  ];
+  for (const row of rows) {
+    const r = document.createElement('div');
+    r.className = 'mg-row';
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-weight:700; font-size:13px; color:#a06c8a; align-self:center;';
+    lbl.textContent = row.label + ':';
+    r.appendChild(lbl);
+    for (const [v, name] of row.picks) {
+      const b = document.createElement('button');
+      b.className = 'mg-pick';
+      b.textContent = name;
+      b.onclick = () => { row.set(v); AudioSys.click(); draw(); };
+      r.appendChild(b);
+    }
+    controls.appendChild(r);
+  }
+  const sell = document.createElement('button');
+  sell.className = 'bigbtn mint';
+  sell.style.fontSize = '15px';
+  sell.textContent = '🧁 Add to display case (+🪙30)';
+  sell.onclick = () => {
+    G.coins += 30;
+    AudioSys.coin();
+    toast('Beautiful! It goes right in the case 🧁✨');
+    updateHUD();
+    document.getElementById('mg-score').textContent = 'Coins: 🪙' + G.coins;
+  };
+  controls.appendChild(sell);
+  document.getElementById('mg-score').textContent = '';
+  draw();
+  show('minigame-screen');
+}
+
+// ---------- cutscenes ----------
+const CUTSCENES = {
+  opening: {
+    caption: 'Mrs. Buttercup: "Welcome to Guinea Cup Cafe, dear! The counter is yours, the pigs are friendly, and— oh! Nibbles! That cupcake is NOT for you!"',
+    dur: 16,
+    draw(ctx, w, h, t) {
+      // cozy cafe interior
+      const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#ffe8d6'); g.addColorStop(1, '#ffd9e3');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      // counter
+      ctx.fillStyle = '#ffe0d0'; ctx.fillRect(0, h * 0.6, w, h * 0.4);
+      ctx.fillStyle = '#fff8f0'; ctx.fillRect(0, h * 0.58, w, h * 0.03);
+      // Mrs. Buttercup (round, warm)
+      ctx.textAlign = 'center';
+      ctx.font = `${h * 0.2}px sans-serif`;
+      ctx.fillText('👵', w * 0.3, h * 0.58);
+      ctx.font = `${h * 0.04}px sans-serif`; ctx.fillStyle = '#a06c8a';
+      ctx.fillText('Mrs. Buttercup', w * 0.3, h * 0.66);
+      // new baker (player)
+      ctx.font = `${h * 0.18}px sans-serif`;
+      ctx.fillText('🧑‍🍳', w * 0.6, h * 0.57);
+      // guinea pig steals a cupcake across the counter
+      const px = w * 0.75 + Math.min(1, Math.max(0, (t - 5) / 4)) * w * 0.3;
+      ctx.font = `${h * 0.07}px sans-serif`;
+      ctx.fillText('🐹', px, h * 0.56);
+      if (t > 5) { ctx.font = `${h * 0.05}px sans-serif`; ctx.fillText('🧁', px - w * 0.03, h * 0.53); }
+      if (t > 5 && t < 9) {
+        ctx.fillStyle = '#e05780'; ctx.font = `bold ${h * 0.05}px sans-serif`;
+        ctx.fillText('NIBBLES!! 🧁💨', w * 0.75, h * 0.35);
+      }
+      // speech
+      if (t < 5) {
+        ctx.fillStyle = '#4a3540'; ctx.font = `bold ${h * 0.045}px sans-serif`;
+        ctx.fillText('Welcome, dear!', w * 0.3, h * 0.3);
+      }
+      // show off the upstairs living space
+      if (t > 9) {
+        ctx.fillStyle = 'rgba(255,248,240,.92)';
+        ctx.beginPath(); ctx.roundRect(w * 0.58, h * 0.07, w * 0.36, h * 0.22, 14); ctx.fill();
+        ctx.fillStyle = '#a06c8a'; ctx.font = `bold ${h * 0.035}px sans-serif`;
+        ctx.fillText('upstairs: bedrooms + a balcony 🌙', w * 0.76, h * 0.15);
+        ctx.font = `${h * 0.06}px sans-serif`;
+        ctx.fillText('🛏  🧸  🪟', w * 0.76, h * 0.24);
+      }
+      // everyone waves goodbye to the tour
+      if (t > 12.5) {
+        ctx.font = `${h * 0.09}px sans-serif`;
+        ctx.fillText('👋🐹👋', w * 0.5, h * 0.88);
+      }
+    }
+  },
+  pip: {
+    caption: 'Pip: "I\'ve got it! I\'ve GOT it—" *CRASH* …Marigold catches a scone in her apron pocket. Marigold: "…fifth time this week ♪" Everyone laughs. Even the scones.',
+    dur: 13,
+    draw(ctx, w, h, t) {
+      const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#e8f4ff'); g.addColorStop(1, '#c9e8ff');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#d9a86c'; ctx.fillRect(0, h * 0.7, w, h * 0.3);
+      ctx.textAlign = 'center';
+      // Pip wobbling with a tall tray
+      const wob = Math.sin(t * 6) * 8;
+      ctx.font = `${h * 0.16}px sans-serif`;
+      ctx.fillText('😰', w * 0.35 + wob * 0.3, h * 0.66);
+      ctx.font = `${h * 0.1}px sans-serif`;
+      const trayY = h * 0.5 + (t > 4 ? Math.min(h * 0.25, (t - 4) * h * 0.2) : 0);
+      ctx.fillText('🥐🥐🥐', w * 0.35 + wob, trayY);
+      if (t > 4 && t < 5.5) {
+        ctx.fillStyle = '#e05780'; ctx.font = `bold ${h * 0.08}px sans-serif`;
+        ctx.fillText('💥 CRASH! 💥', w / 2, h * 0.3);
+      }
+      // scones flying
+      if (t > 4) {
+        ctx.font = `${h * 0.06}px sans-serif`;
+        for (let i = 0; i < 5; i++) {
+          const a = t - 4 + i;
+          ctx.fillText('🥐', w * 0.35 + Math.cos(i * 2) * a * w * 0.06, trayY - Math.sin(a * 3 + i) * h * 0.12 + a * h * 0.04);
+        }
+      }
+      // Marigold calmly catches one
+      ctx.font = `${h * 0.16}px sans-serif`;
+      ctx.fillText('🎵', w * 0.65, h * 0.66);
+      if (t > 6) {
+        ctx.font = `${h * 0.06}px sans-serif`;
+        ctx.fillText('🥐', w * 0.65, h * 0.52);
+        ctx.fillStyle = '#3aa98c'; ctx.font = `bold ${h * 0.045}px sans-serif`;
+        ctx.fillText('♪ got it ♪', w * 0.65, h * 0.4);
+      }
+      // everyone laughing
+      if (t > 7.5) {
+        ctx.font = `${h * 0.08}px sans-serif`;
+        ctx.fillText('😂 😄 😆', w / 2, h * 0.2);
+      }
+    }
+  },
+  theo: {
+    caption: 'Dawn. The gang opens the cafe to find… a five-tier masterpiece cake, still warm. Theo is already "asleep" in the corner, smiling. Flour on his nose gives him away.',
+    dur: 13,
+    draw(ctx, w, h, t) {
+      const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#2b1a3e'); g.addColorStop(1, '#6a4a7a');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      // sunrise through window
+      const sunrise = Math.min(1, t / 6);
+      ctx.fillStyle = `rgba(255,200,120,${0.2 + sunrise * 0.5})`;
+      ctx.beginPath(); ctx.arc(w * 0.5, h * 0.75, w * 0.3, Math.PI, 0); ctx.fill();
+      ctx.textAlign = 'center';
+      // the masterpiece cake, revealed
+      if (t > 2) {
+        const scale = Math.min(1, (t - 2) / 2);
+        ctx.font = `${h * 0.28 * scale}px sans-serif`;
+        ctx.fillText('🎂', w / 2, h * 0.62);
+        if (scale >= 1) {
+          ctx.fillStyle = '#ffd93d'; ctx.font = `${h * 0.05}px sans-serif`;
+          ctx.fillText('✨ ✨ ✨', w / 2, h * 0.3);
+        }
+      }
+      // the gang gasping
+      if (t > 4) {
+        ctx.font = `${h * 0.1}px sans-serif`;
+        ctx.fillText('😮 😲 🥹', w / 2, h * 0.82);
+      }
+      // Theo pretending to sleep
+      if (t > 6) {
+        ctx.font = `${h * 0.09}px sans-serif`;
+        ctx.fillText('😴', w * 0.12, h * 0.85);
+        ctx.fillStyle = '#c9a8e8'; ctx.font = `${h * 0.035}px sans-serif`;
+        ctx.fillText('(flour on his nose)', w * 0.12, h * 0.92);
+      }
+    }
+  },
+  finale: {
+    caption: 'Festival Day: SUCCESS! Mrs. Buttercup pins on your Star Employee medal. The pigs wear tiny party hats. Pip drops nothing. Theo smiles. Marigold sings. Slow-motion group hug!',
+    dur: 18,
+    draw(ctx, w, h, t) {
+      const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#ffd93d'); g.addColorStop(1, '#ff8fab');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      // confetti rain
+      const cols = ['#ff6b6b', '#6bcb77', '#4ecdc4', '#a06cd5', '#fff'];
+      for (let i = 0; i < 70; i++) {
+        ctx.fillStyle = cols[i % 5];
+        ctx.fillRect(((i * 97) % 100) / 100 * w, ((t * 0.12 + i * 0.061) % 1) * h, 7, 7);
+      }
+      ctx.textAlign = 'center';
+      // balloons
+      for (let i = 0; i < 6; i++) {
+        ctx.font = `${h * 0.07}px sans-serif`;
+        ctx.fillText('🎈', w * 0.1 + i * w * 0.16, h * 0.2 + Math.sin(t * 2 + i) * 10);
+      }
+      // the whole gang
+      const gang = ['👵', '😰', '🎵', '😴', '🧑‍🍳'];
+      gang.forEach((e, i) => {
+        ctx.font = `${h * 0.12}px sans-serif`;
+        ctx.fillText(e, w * 0.15 + i * w * 0.17, h * 0.6 + Math.sin(t * 4 + i) * h * 0.02);
+      });
+      // pigs with party hats
+      for (let i = 0; i < 4; i++) {
+        ctx.font = `${h * 0.06}px sans-serif`;
+        ctx.fillText('🐹', w * 0.2 + i * w * 0.2, h * 0.75);
+        ctx.fillText('🎉', w * 0.2 + i * w * 0.2, h * 0.7);
+      }
+      // medal
+      if (t > 4) {
+        const s = Math.min(1, (t - 4) / 1.5);
+        ctx.font = `${h * 0.2 * s}px sans-serif`;
+        ctx.fillText('🏅', w / 2, h * 0.42);
+      }
+      if (t > 6) {
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${h * 0.07}px sans-serif`;
+        ctx.fillText('STAR EMPLOYEE!', w / 2, h * 0.15);
+      }
+      if (t > 9) {
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${h * 0.05}px sans-serif`;
+        ctx.fillText('🤗 slow-motion hug 🤗', w / 2, h * 0.92);
+      }
+      if (t > 13) {
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${h * 0.06}px sans-serif`;
+        ctx.fillText('~ The End… for now! ~', w / 2, h * 0.5);
+        ctx.font = `${h * 0.04}px sans-serif`;
+        ctx.fillText('🐹🧁🐹', w / 2, h * 0.58);
+      }
+    }
+  }
+};
+function playCutscene(key, onDone) {
+  const cs = CUTSCENES[key];
+  G.state = 'cutscene';
+  G.cutscene = { key, start: performance.now(), onDone };
+  document.getElementById('cutscene').style.display = 'flex';
+  document.getElementById('cutscene-caption').textContent = cs.caption;
+  const cvs = document.getElementById('cutscene-canvas');
+  cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+}
+function updateCutscene(now) {
+  const c = G.cutscene;
+  if (!c) return;
+  const cs = CUTSCENES[c.key];
+  const t = (now - c.start) / 1000;
+  const cvs = document.getElementById('cutscene-canvas');
+  cs.draw(cvs.getContext('2d'), cvs.width, cvs.height, t);
+  if (t >= cs.dur) endCutscene();
+}
+function endCutscene() {
+  const c = G.cutscene;
+  if (!c) return;
+  G.cutscene = null;
+  document.getElementById('cutscene').style.display = 'none';
+  const done = c.onDone;
+  if (done) done();
+}
+document.getElementById('skip-btn').addEventListener('click', () => { AudioSys.click(); endCutscene(); });
+
+// ---------- character creation ----------
+function buildCharCreation() {
+  const wrap = document.getElementById('cc-options');
+  wrap.innerHTML = '';
+  if (!G.avatar) G.avatar = defaultAvatar();
+  for (const key of Object.keys(AVATAR_OPTIONS)) {
+    const opt = AVATAR_OPTIONS[key];
+    if (G.avatar[key] == null) G.avatar[key] = 0;   // older saves may lack newer options
+    const row = document.createElement('div');
+    row.className = 'cc-row';
+    const lbl = document.createElement('span');
+    lbl.className = 'lbl';
+    lbl.textContent = opt.label;
+    const prev = document.createElement('button');
+    prev.className = 'cyc'; prev.textContent = '‹';
+    const val = document.createElement('span');
+    val.className = 'val';
+    val.textContent = opt.values[G.avatar[key]];
+    const next = document.createElement('button');
+    next.className = 'cyc'; next.textContent = '›';
+    const cycle = d => {
+      G.avatar[key] = (G.avatar[key] + d + opt.values.length) % opt.values.length;
+      val.textContent = opt.values[G.avatar[key]];
+      AudioSys.click();
+      drawAvatar(document.getElementById('avatar-preview'), G.avatar);
+    };
+    prev.onclick = () => cycle(-1);
+    next.onclick = () => cycle(1);
+    row.appendChild(prev);
+    row.appendChild(lbl);
+    row.appendChild(val);
+    row.appendChild(next);
+    wrap.appendChild(row);
+  }
+  drawAvatar(document.getElementById('avatar-preview'), G.avatar);
+}
+
+// ---------- game start / victory ----------
+function newGame() {
+  G.day = 1; G.coins = 0;
+  G.unlocked = { pigHats: [], decorations: [], menu: [], outfits: [] };
+  G.equipped = { pigHat: null };
+  G.avatar = defaultAvatar();
+  buildCharCreation();
+  show('charcreate-screen');
+  G.state = 'create';
+}
+function finishCreation() {
+  G.avatar.name = document.getElementById('cc-name').value.trim() || 'Baker';
+  Save.write();
+  playCutscene('opening', showBriefing);
+}
+function winGame() {
+  G.state = 'victory';
+  document.getElementById('victory-coins').textContent = 'Final piggy bank: 🪙' + G.coins;
+  show('victory-screen');
+  AudioSys.fanfare();
+  Save.clear();   // story complete — fresh start next time
+}
+
+// ---------- wiring ----------
+document.getElementById('btn-new').addEventListener('click', () => { AudioSys.init(); AudioSys.click(); newGame(); });
+document.getElementById('btn-continue').addEventListener('click', () => {
+  AudioSys.init();
+  const d = Save.data;
+  if (d) { G.day = d.day; G.coins = d.coins; G.unlocked = d.unlocked; G.equipped = d.equipped; G.avatar = d.avatar; }
+  applyPigHat(); applyDecorations();
+  showBriefing();
+});
+document.getElementById('btn-cc-done').addEventListener('click', finishCreation);
+document.getElementById('btn-briefing-go').addEventListener('click', () => { AudioSys.click(); startDay(); });
+document.getElementById('btn-shop').addEventListener('click', () => { AudioSys.click(); openShop(); });
+document.getElementById('btn-shop-done').addEventListener('click', () => { AudioSys.click(); show('dayend-screen'); G.state = 'dayend'; });
+document.getElementById('btn-minigame').addEventListener('click', () => { AudioSys.click(); openFeedGame(); });
+document.getElementById('btn-cupcake').addEventListener('click', () => { AudioSys.click(); openCupcakeGame(); });
+document.getElementById('btn-mg-done').addEventListener('click', () => { AudioSys.click(); clearTimeout(mgTimer); mgIntervals.forEach(clearInterval); mgIntervals = []; Save.write(); show('dayend-screen'); G.state = 'dayend'; });
+document.getElementById('btn-next-day').addEventListener('click', () => {
+  AudioSys.click();
+  if (G.day >= 15) { playCutscene('finale', winGame); return; }
+  nextDay();
+});
+document.getElementById('btn-victory-done').addEventListener('click', () => {
+  AudioSys.click();
+  show('title-screen');
+  G.state = 'title';
+  document.getElementById('btn-continue').classList.add('hidden');
+});
+document.getElementById('mute-btn').addEventListener('click', (e) => {
+  e.target.textContent = AudioSys.toggleMute() ? '🔇' : '🔊';
+});
+
+// ---------- main loop ----------
+let lastT = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  if (G.state === 'cutscene') { updateCutscene(now); return; }
+  // camera look
+  camera.rotation.set(0, 0, 0, 'YXZ');
+  camera.rotation.y = lookYaw;
+  camera.rotation.x = lookPitch;
+  // fairy lights twinkle
+  if (G.fairyLights) {
+    for (let i = 0; i < G.fairyLights.length; i++) {
+      G.fairyLights[i].material.emissiveIntensity = 0.6 + Math.sin(now * 0.003 + i * 1.7) * 0.35;
+    }
+  }
+  // wandering pig
+  if (pigs.wanderer) {
+    const p = pigs.wanderer;
+    p.position.x += p.userData.dir * dt * 0.5;
+    if (p.position.x > -0.5) p.userData.dir = -1;
+    if (p.position.x < -2.6) p.userData.dir = 1;
+    p.rotation.y = p.userData.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    p.position.y = 1.13 + Math.abs(Math.sin(now * 0.006)) * 0.02;
+  }
+  // tip jar pig wiggle
+  if (pigs.tip && pigs.tip.userData.wiggleUntil && now < pigs.tip.userData.wiggleUntil) {
+    pigs.tip.rotation.z = Math.sin(now * 0.02) * 0.15;
+  } else if (pigs.tip) pigs.tip.rotation.z = 0;
+  if (G.state === 'day') {
+    updateCustomers(dt, now);
+    maybePigInterrupt(dt);
+    updateFX(dt);
+  }
+  renderer.render(scene, camera);
+}
+
+// ---------- init ----------
+buildCafe();
+buildPigs();
+show('title-screen');
+if (Save.data && Save.data.day) document.getElementById('btn-continue').classList.remove('hidden');
+requestAnimationFrame(loop);
+
+// debug/test hook
+window.__cafe = { G, startDay, spawnCustomer, endDay, nextDay, addToTray, onCustomerClick, MENU, genOrder, ordersMatch, playCutscene, endCutscene, newGame, finishCreation, showBriefing, openShop, winGame };
+</script>
+</body>
+</html>
+
