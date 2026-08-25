@@ -186,7 +186,7 @@
   <div class="section-label">How to Play</div>
   <p style="color:#fff; max-width:520px; font-size:clamp(14px,2.2vw,18px); line-height:1.7; margin-bottom:16px;">
     🖱 <b>Desktop:</b> WASD to move, mouse to look, click to throw.<br>
-    📱 <b>Mobile:</b> left stick to move (auto-aim!), 🏐 button to throw.<br><br>
+    📱 <b>Mobile:</b> left stick up/down to move forward/back, left/right to steer, 🏐 button to throw.<br><br>
     🤾 Dodge the animals' dodgeballs! Throw back to score points.<br>
     🍕 Pizza heals you. 🍦 Ice cream makes you super fast.<br>
     🦒🦨 Giraffes and ferrets are worth bonus points (and make a funny sound!).<br>
@@ -214,7 +214,7 @@
   <div class="section-label">Controls</div>
   <div class="choice-row" id="controls-row">
     <div class="choice-card" data-controls="desktop"><span class="card-emoji">🖥️</span><span class="card-name">Desktop</span><div class="card-stats">WASD + mouse look<br>Click to throw</div></div>
-    <div class="choice-card" data-controls="mobile"><span class="card-emoji">📱</span><span class="card-name">Mobile</span><div class="card-stats">Two thumbsticks<br>🏐 button to throw</div></div>
+    <div class="choice-card" data-controls="mobile"><span class="card-emoji">📱</span><span class="card-name">Mobile</span><div class="card-stats">Thumbstick: move + steer<br>🏐 button to throw</div></div>
   </div>
   <button class="menu-btn" id="btn-start-game">🎉 Start the Party!</button>
   <button class="menu-btn secondary" id="btn-setup-back">← Back</button>
@@ -1635,6 +1635,8 @@ function updateParticles(dt) {
 // ============================================================================
 // PLAYER MOVEMENT
 // ============================================================================
+const MOBILE_TURN_RATE = 2.2;       // rad/s at full stick deflection (~126°/s) — steerable, not spinny
+const MOBILE_BACKPEDAL_SPEED = 0.7; // backpedal moves at 70% of forward speed
 function updatePlayer(dt) {
   const speedBoost = performance.now() < G.speedBoostUntil ? 1.6 : 1;
   const speed = G.avatar.speed * speedBoost;
@@ -1644,18 +1646,15 @@ function updatePlayer(dt) {
   if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
   if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
   if (G.isMobile) {
-    mx += sticks.left.dx; mz += sticks.left.dy;
-    // no aim stick on mobile — face the direction you're moving instead
-    const mlen = Math.hypot(mx, mz);
-    if (mlen > 0.25) {
-      const s0 = Math.sin(player.yaw), c0 = Math.cos(player.yaw);
-      const wvx = mx*c0 + mz*s0, wvz = -mx*s0 + mz*c0;
-      const ty = Math.atan2(-wvx, -wvz);
-      let dyaw = ty - player.yaw;
-      while (dyaw > Math.PI) dyaw -= 2*Math.PI;
-      while (dyaw < -Math.PI) dyaw += 2*Math.PI;
-      player.yaw += dyaw * Math.min(1, dt * 5);
-    }
+    // Tank-style stick: up = forward, down = backpedal, left/right = steer.
+    // (The old "face the direction you're moving" code chased its own tail:
+    // the stick is yaw-relative and yaw chased the stick, so holding the stick
+    // off-center spun the player in circles and pulling down flipped you 180°.)
+    player.yaw -= sticks.left.dx * MOBILE_TURN_RATE * dt;
+    const sdy = sticks.left.dy;
+    // backpedal is a bit slower than running forward, and never turns you around —
+    // you keep facing forward while retreating so you can still aim and throw
+    mz += sdy > 0 ? sdy * MOBILE_BACKPEDAL_SPEED : sdy;
   }
   const len = Math.hypot(mx, mz);
   if (len > 1) { mx /= len; mz /= len; }
