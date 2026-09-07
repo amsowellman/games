@@ -1,0 +1,36 @@
+{
+  "id": 6,
+  "name": "The Kitchen Collapse",
+  "background": "interior_damage",
+  "groundY": 640,
+  "weather": {},
+  "slingshot": { "x": 170, "y": 564 },
+  "launches": 5,
+  "abilities": ["blast", "wind"],
+  "parTime": 110,
+  "tutorial": [
+    "The kitchen is one big unstable stack - chain reactions matter!",
+    "Wind Gust pushes debris (and guinea pigs) toward the safe lawn!"
+  ],
+  "stars": { "two": 5000, "three": 7200 },
+  "guineaPigs": [
+    { "variant": "blue", "x": 760, "y": 622 },
+    { "variant": "brown", "x": 880, "y": 610 },
+    { "variant": "orange", "x": 1000, "y": 594 },
+    { "variant": "baby", "x": 1195, "y": 626 }
+  ],
+  "debris": [
+    { "type": "stone", "x": 820, "y": 620, "w": 54, "h": 40 },
+    { "type": "stone", "x": 820, "y": 580, "w": 54, "h": 40 },
+    { "type": "metal", "x": 820, "y": 553, "w": 110, "h": 14 },
+    { "type": "stone", "x": 940, "y": 614, "w": 54, "h": 52 },
+    { "type": "glass", "x": 940, "y": 567, "w": 44, "h": 40 },
+    { "type": "stone", "x": 1080, "y": 620, "w": 54, "h": 40 },
+    { "type": "stone", "x": 1140, "y": 620, "w": 54, "h": 40 },
+    { "type": "metal", "x": 1100, "y": 592, "w": 120, "h": 16 },
+    { "type": "glass", "x": 1100, "y": 564, "w": 44, "h": 40 },
+    { "type": "stone", "x": 700, "y": 625, "w": 36, "h": 30 },
+    { "type": "plank", "x": 880, "y": 634, "w": 64, "h": 12 },
+    { "type": "wood", "x": 1010, "y": 626, "w": 90, "h": 28 }
+  ]
+}

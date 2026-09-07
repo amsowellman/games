@@ -1,0 +1,32 @@
+{
+  "id": 1,
+  "name": "The Storm",
+  "background": "storm",
+  "groundY": 632,
+  "weather": { "rain": true, "lightning": true },
+  "slingshot": { "x": 170, "y": 556 },
+  "launches": 3,
+  "abilities": ["blast"],
+  "parTime": 60,
+  "tutorial": [
+    "Drag Poison Honey back and release to launch him at the fallen tree!",
+    "While Poison Honey is flying, TAP anywhere (or press SPACE) to unleash Poison Blast!"
+  ],
+  "stars": { "two": 2400, "three": 3600 },
+  "guineaPigs": [
+    { "variant": "blue", "x": 350, "y": 614 },
+    { "variant": "brown", "x": 880, "y": 614 }
+  ],
+  "debris": [
+    { "type": "wood", "x": 712, "y": 584, "w": 16, "h": 96 },
+    { "type": "wood", "x": 988, "y": 584, "w": 16, "h": 96 },
+    { "type": "wood", "x": 850, "y": 529, "w": 280, "h": 14 },
+    { "type": "plank", "x": 790, "y": 512, "w": 150, "h": 14, "angle": -12 },
+    { "type": "plank", "x": 915, "y": 515, "w": 150, "h": 14, "angle": 10 },
+    { "type": "stone", "x": 905, "y": 497, "w": 36, "h": 52 },
+    { "type": "stone", "x": 700, "y": 595, "w": 60, "h": 90 },
+    { "type": "trunk", "x": 660, "y": 530, "w": 520, "h": 60, "angle": -20, "friction": 0.95 },
+    { "type": "plank", "x": 350, "y": 592, "w": 100, "h": 12, "angle": 6 },
+    { "type": "plank", "x": 880, "y": 592, "w": 90, "h": 12 }
+  ]
+}

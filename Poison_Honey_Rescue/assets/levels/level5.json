@@ -1,0 +1,33 @@
+{
+  "id": 5,
+  "name": "Reinforced Ruins",
+  "background": "night",
+  "groundY": 640,
+  "weather": {},
+  "slingshot": { "x": 170, "y": 564 },
+  "launches": 4,
+  "abilities": ["blast", "bees"],
+  "parTime": 100,
+  "tutorial": [
+    "Stone and metal! Brute force won't dent metal beams...",
+    "Bee Swarm weakens any structure for 4 seconds - even metal!"
+  ],
+  "stars": { "two": 4200, "three": 6200 },
+  "guineaPigs": [
+    { "variant": "brown", "x": 840, "y": 622 },
+    { "variant": "brown", "x": 920, "y": 622 },
+    { "variant": "orange", "x": 1000, "y": 619 }
+  ],
+  "debris": [
+    { "type": "stone", "x": 800, "y": 600, "w": 50, "h": 80 },
+    { "type": "stone", "x": 880, "y": 600, "w": 50, "h": 80 },
+    { "type": "stone", "x": 960, "y": 600, "w": 50, "h": 80 },
+    { "type": "metal", "x": 880, "y": 548, "w": 240, "h": 18 },
+    { "type": "stone", "x": 840, "y": 505, "w": 50, "h": 46 },
+    { "type": "stone", "x": 920, "y": 505, "w": 50, "h": 46 },
+    { "type": "metal", "x": 880, "y": 470, "w": 160, "h": 14 },
+    { "type": "stone", "x": 840, "y": 598, "w": 44, "h": 34, "angle": 5 },
+    { "type": "stone", "x": 920, "y": 598, "w": 44, "h": 34, "angle": -5 },
+    { "type": "metal", "x": 1000, "y": 600, "w": 90, "h": 16 }
+  ]
+}

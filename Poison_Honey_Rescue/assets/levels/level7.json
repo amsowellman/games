@@ -1,0 +1,39 @@
+{
+  "id": 7,
+  "name": "Multi-Room Mayhem",
+  "background": "interior_damage",
+  "groundY": 640,
+  "weather": {},
+  "slingshot": { "x": 150, "y": 564 },
+  "launches": 5,
+  "abilities": ["blast", "trap", "bolt", "bees"],
+  "parTime": 130,
+  "tutorial": [
+    "Six guinea pigs across three rooms!",
+    "Combine two abilities in a single launch - weaken with bees, then blast!"
+  ],
+  "stars": { "two": 6800, "three": 9500 },
+  "guineaPigs": [
+    { "variant": "blue", "x": 700, "y": 598 },
+    { "variant": "brown", "x": 830, "y": 610 },
+    { "variant": "orange", "x": 880, "y": 619 },
+    { "variant": "blue", "x": 1040, "y": 604 },
+    { "variant": "brown", "x": 1120, "y": 604 },
+    { "variant": "baby", "x": 1230, "y": 626 }
+  ],
+  "debris": [
+    { "type": "wood", "x": 760, "y": 580, "w": 18, "h": 120 },
+    { "type": "wood", "x": 980, "y": 580, "w": 18, "h": 120 },
+    { "type": "wood", "x": 1190, "y": 580, "w": 18, "h": 120 },
+    { "type": "wood", "x": 870, "y": 512, "w": 220, "h": 16 },
+    { "type": "wood", "x": 1085, "y": 512, "w": 210, "h": 16 },
+    { "type": "hay", "x": 930, "y": 620, "w": 50, "h": 40 },
+    { "type": "metal", "x": 1085, "y": 632, "w": 140, "h": 16 },
+    { "type": "wood", "x": 700, "y": 628, "w": 56, "h": 24 },
+    { "type": "plank", "x": 830, "y": 634, "w": 60, "h": 12 },
+    { "type": "plank", "x": 830, "y": 487, "w": 110, "h": 12, "angle": -12 },
+    { "type": "glass", "x": 930, "y": 484, "w": 44, "h": 40 },
+    { "type": "stone", "x": 1050, "y": 484, "w": 50, "h": 40 },
+    { "type": "plank", "x": 1130, "y": 491, "w": 100, "h": 12, "angle": 8 }
+  ]
+}

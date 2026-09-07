@@ -1,0 +1,70 @@
+{
+  "id": 10,
+  "name": "The Grand Rescue",
+  "background": "interior_damage",
+  "groundY": 640,
+  "weather": { "lightning": true },
+  "slingshot": { "x": 140, "y": 564 },
+  "launches": 6,
+  "abilities": ["blast", "trap", "bolt", "bees", "wind", "shield"],
+  "parTime": 150,
+  "tutorial": [
+    "The Grand Rescue! 8 guinea pigs, every ability, one heroic ferret.",
+    "Watch out - smashing supports triggers secondary collapses!"
+  ],
+  "stars": { "two": 9000, "three": 12500 },
+  "guineaPigs": [
+    { "variant": "blue", "x": 720, "y": 622 },
+    { "variant": "brown", "x": 800, "y": 622 },
+    { "variant": "orange", "x": 880, "y": 619 },
+    { "variant": "baby", "x": 945, "y": 507 },
+    { "variant": "brown", "x": 1030, "y": 622 },
+    { "variant": "blue", "x": 1100, "y": 622 },
+    { "variant": "baby", "x": 1180, "y": 626 },
+    { "variant": "orange", "x": 960, "y": 619 }
+  ],
+  "debris": [
+    { "type": "wood", "x": 720, "y": 590, "w": 18, "h": 100 },
+    { "type": "wood", "x": 800, "y": 590, "w": 18, "h": 100 },
+    { "type": "wood", "x": 760, "y": 540, "w": 110, "h": 16 },
+    { "type": "plank", "x": 730, "y": 500, "w": 100, "h": 12, "angle": -25 },
+    { "type": "plank", "x": 795, "y": 498, "w": 100, "h": 12, "angle": 25 },
+    { "type": "wood", "x": 1040, "y": 590, "w": 18, "h": 100 },
+    { "type": "wood", "x": 1120, "y": 590, "w": 18, "h": 100 },
+    { "type": "wood", "x": 1080, "y": 540, "w": 110, "h": 16 },
+    { "type": "wood", "x": 880, "y": 575, "w": 16, "h": 90 },
+    { "type": "wood", "x": 1010, "y": 575, "w": 16, "h": 90 },
+    { "type": "wood", "x": 945, "y": 530, "w": 180, "h": 16 },
+    { "type": "stone", "x": 860, "y": 605, "w": 50, "h": 44 },
+    { "type": "hay", "x": 940, "y": 610, "w": 60, "h": 40 },
+    { "type": "glass", "x": 760, "y": 600, "w": 44, "h": 40 },
+    { "type": "plank", "x": 720, "y": 604, "w": 100, "h": 12 },
+    { "type": "plank", "x": 800, "y": 606, "w": 100, "h": 12, "angle": 6 },
+    { "type": "stone", "x": 880, "y": 600, "w": 46, "h": 36 },
+    { "type": "wood", "x": 1030, "y": 604, "w": 100, "h": 24, "angle": -6 },
+    { "type": "plank", "x": 1100, "y": 600, "w": 110, "h": 12, "angle": 8 },
+    { "type": "glass", "x": 1180, "y": 608, "w": 40, "h": 30 },
+    { "type": "hay", "x": 960, "y": 600, "w": 60, "h": 36 },
+    { "type": "metal", "x": 945, "y": 480, "w": 120, "h": 14 },
+    { "type": "stone", "x": 945, "y": 444, "w": 44, "h": 36 }
+  ],
+  "triggers": [
+    {
+      "watchIndex": 8,
+      "delay": 500,
+      "spawn": [
+        { "type": "plank", "x": 900, "y": 300, "w": 120, "h": 12, "angle": 15 },
+        { "type": "plank", "x": 970, "y": 260, "w": 120, "h": 12, "angle": -18 },
+        { "type": "stone", "x": 1010, "y": 320, "w": 44, "h": 34 }
+      ]
+    },
+    {
+      "watchIndex": 9,
+      "delay": 700,
+      "spawn": [
+        { "type": "hay", "x": 940, "y": 280, "w": 56, "h": 40 },
+        { "type": "plank", "x": 880, "y": 330, "w": 100, "h": 12, "angle": 24 }
+      ]
+    }
+  ]
+}

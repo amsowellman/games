@@ -1,0 +1,32 @@
+{
+  "id": 4,
+  "name": "Attic Escape",
+  "background": "interior_storm",
+  "groundY": 640,
+  "weather": { "lightning": true },
+  "slingshot": { "x": 170, "y": 564 },
+  "launches": 4,
+  "abilities": ["blast", "shield"],
+  "parTime": 80,
+  "tutorial": [
+    "A baby guinea pig is trapped in the attic - babies can't move, clear everything around them!",
+    "Honey Shield makes guinea pigs invulnerable for 5 seconds. Protect the baby!"
+  ],
+  "stars": { "two": 3000, "three": 4600 },
+  "guineaPigs": [
+    { "variant": "baby", "x": 880, "y": 537 },
+    { "variant": "brown", "x": 960, "y": 622 }
+  ],
+  "debris": [
+    { "type": "wood", "x": 780, "y": 600, "w": 16, "h": 80 },
+    { "type": "wood", "x": 1020, "y": 600, "w": 16, "h": 80 },
+    { "type": "wood", "x": 900, "y": 560, "w": 260, "h": 18 },
+    { "type": "hay", "x": 850, "y": 528, "w": 56, "h": 44 },
+    { "type": "hay", "x": 910, "y": 528, "w": 56, "h": 44 },
+    { "type": "hay", "x": 880, "y": 484, "w": 56, "h": 44 },
+    { "type": "wood", "x": 830, "y": 440, "w": 140, "h": 14, "angle": -20 },
+    { "type": "wood", "x": 950, "y": 430, "w": 140, "h": 14, "angle": 20 },
+    { "type": "plank", "x": 960, "y": 606, "w": 120, "h": 14, "angle": 10 },
+    { "type": "hay", "x": 1050, "y": 618, "w": 56, "h": 44 }
+  ]
+}

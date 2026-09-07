@@ -1,0 +1,32 @@
+{
+  "id": 2,
+  "name": "The Fallen Oak",
+  "background": "day",
+  "groundY": 640,
+  "weather": {},
+  "slingshot": { "x": 170, "y": 564 },
+  "launches": 3,
+  "abilities": ["blast", "trap"],
+  "parTime": 70,
+  "tutorial": [
+    "A bigger tree! Drag back and release to launch.",
+    "Use Honey Trap to slow falling debris before it lands on the guinea pigs!"
+  ],
+  "stars": { "two": 3400, "three": 5200 },
+  "guineaPigs": [
+    { "variant": "orange", "x": 850, "y": 595 },
+    { "variant": "brown", "x": 930, "y": 610 },
+    { "variant": "blue", "x": 1000, "y": 610 }
+  ],
+  "debris": [
+    { "type": "trunk", "x": 830, "y": 540, "w": 560, "h": 66, "angle": -14 },
+    { "type": "wood", "x": 772, "y": 614, "w": 16, "h": 52 },
+    { "type": "wood", "x": 1048, "y": 580, "w": 16, "h": 120 },
+    { "type": "plank", "x": 790, "y": 508.8, "w": 180, "h": 14, "angle": -14 },
+    { "type": "plank", "x": 990, "y": 458.9, "w": 180, "h": 14, "angle": -14 },
+    { "type": "stone", "x": 1030, "y": 421.1, "w": 34, "h": 40, "angle": -14 },
+    { "type": "wood", "x": 850, "y": 628, "w": 72, "h": 24 },
+    { "type": "plank", "x": 930, "y": 634, "w": 56, "h": 12 },
+    { "type": "plank", "x": 1000, "y": 634, "w": 56, "h": 12 }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": 8,
+  "name": "Storm Surge",
+  "background": "storm",
+  "groundY": 632,
+  "weather": { "rain": true, "lightning": true, "wind": { "base": 240, "interval": 4200 } },
+  "slingshot": { "x": 170, "y": 556 },
+  "launches": 5,
+  "abilities": ["blast", "wind", "bolt"],
+  "parTime": 110,
+  "tutorial": [
+    "The storm is back - watch the wind streaks, they push Poison Honey mid-flight!",
+    "Compensate your aim, or use Wind Gust to fight back!"
+  ],
+  "stars": { "two": 5200, "three": 7400 },
+  "guineaPigs": [
+    { "variant": "blue", "x": 700, "y": 614 },
+    { "variant": "brown", "x": 850, "y": 614 },
+    { "variant": "orange", "x": 950, "y": 611 },
+    { "variant": "brown", "x": 1050, "y": 614 }
+  ],
+  "debris": [
+    { "type": "stone", "x": 790, "y": 592, "w": 50, "h": 76 },
+    { "type": "stone", "x": 1070, "y": 592, "w": 50, "h": 76 },
+    { "type": "wood", "x": 930, "y": 548, "w": 330, "h": 16 },
+    { "type": "trunk", "x": 900, "y": 480, "w": 420, "h": 58, "angle": 20 },
+    { "type": "plank", "x": 850, "y": 420, "w": 130, "h": 12, "angle": -28 },
+    { "type": "plank", "x": 1000, "y": 400, "w": 130, "h": 12, "angle": 24 },
+    { "type": "plank", "x": 700, "y": 596, "w": 110, "h": 12, "angle": -8 },
+    { "type": "plank", "x": 850, "y": 598, "w": 120, "h": 12, "angle": 6 },
+    { "type": "wood", "x": 950, "y": 600, "w": 100, "h": 26, "angle": -6 },
+    { "type": "plank", "x": 1050, "y": 596, "w": 110, "h": 12, "angle": 10 },
+    { "type": "stone", "x": 1085, "y": 540, "w": 40, "h": 34 }
+  ]
+}

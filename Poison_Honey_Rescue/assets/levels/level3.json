@@ -1,0 +1,37 @@
+{
+  "id": 3,
+  "name": "Two-Story Trouble",
+  "background": "dusk",
+  "groundY": 640,
+  "weather": {},
+  "slingshot": { "x": 170, "y": 564 },
+  "launches": 4,
+  "abilities": ["blast", "bolt"],
+  "parTime": 90,
+  "tutorial": [
+    "Guinea pigs on both floors - aim high and low!",
+    "Lightning Strike shatters wood and stone in a vertical column."
+  ],
+  "stars": { "two": 4000, "three": 6000 },
+  "guineaPigs": [
+    { "variant": "brown", "x": 860, "y": 622 },
+    { "variant": "orange", "x": 950, "y": 619 },
+    { "variant": "blue", "x": 900, "y": 514 }
+  ],
+  "debris": [
+    { "type": "wood", "x": 812, "y": 590, "w": 16, "h": 100 },
+    { "type": "wood", "x": 988, "y": 590, "w": 16, "h": 100 },
+    { "type": "wood", "x": 900, "y": 540, "w": 190, "h": 16 },
+    { "type": "wood", "x": 812, "y": 490, "w": 16, "h": 100 },
+    { "type": "wood", "x": 988, "y": 490, "w": 16, "h": 100 },
+    { "type": "wood", "x": 900, "y": 440, "w": 190, "h": 16 },
+    { "type": "plank", "x": 855, "y": 395, "w": 110, "h": 12, "angle": -25 },
+    { "type": "plank", "x": 945, "y": 395, "w": 110, "h": 12, "angle": 25 },
+    { "type": "stone", "x": 860, "y": 510, "w": 46, "h": 36 },
+    { "type": "stone", "x": 940, "y": 510, "w": 46, "h": 36 },
+    { "type": "plank", "x": 870, "y": 505, "w": 14, "h": 40 },
+    { "type": "plank", "x": 930, "y": 505, "w": 14, "h": 40 },
+    { "type": "plank", "x": 900, "y": 482, "w": 80, "h": 12 },
+    { "type": "plank", "x": 880, "y": 600, "w": 150, "h": 12, "angle": -8 }
+  ]
+}

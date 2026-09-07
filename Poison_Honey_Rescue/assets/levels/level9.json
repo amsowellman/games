@@ -1,0 +1,41 @@
+{
+  "id": 9,
+  "name": "The Fortress",
+  "background": "night",
+  "groundY": 640,
+  "weather": {},
+  "slingshot": { "x": 150, "y": 564 },
+  "launches": 5,
+  "abilities": ["bolt", "bees", "blast"],
+  "parTime": 120,
+  "tutorial": [
+    "A fortress of metal! Only the wooden joints can be broken.",
+    "Strike the joints with lightning or weaken them with the Bee Swarm!"
+  ],
+  "stars": { "two": 6000, "three": 8500 },
+  "guineaPigs": [
+    { "variant": "brown", "x": 860, "y": 622 },
+    { "variant": "orange", "x": 940, "y": 619 },
+    { "variant": "blue", "x": 1020, "y": 622 },
+    { "variant": "baby", "x": 980, "y": 500 },
+    { "variant": "brown", "x": 1150, "y": 622 }
+  ],
+  "debris": [
+    { "type": "metal", "x": 800, "y": 590, "w": 20, "h": 110 },
+    { "type": "metal", "x": 1080, "y": 590, "w": 20, "h": 110 },
+    { "type": "metal", "x": 940, "y": 580, "w": 20, "h": 130 },
+    { "type": "metal", "x": 940, "y": 530, "w": 320, "h": 18 },
+    { "type": "metal", "x": 940, "y": 450, "w": 260, "h": 18 },
+    { "type": "plank", "x": 800, "y": 530, "w": 26, "h": 20 },
+    { "type": "plank", "x": 1080, "y": 530, "w": 26, "h": 20 },
+    { "type": "plank", "x": 940, "y": 522, "w": 26, "h": 20 },
+    { "type": "plank", "x": 865, "y": 444, "w": 26, "h": 20 },
+    { "type": "plank", "x": 1015, "y": 444, "w": 26, "h": 20 },
+    { "type": "stone", "x": 860, "y": 600, "w": 50, "h": 34 },
+    { "type": "stone", "x": 940, "y": 598, "w": 50, "h": 34 },
+    { "type": "stone", "x": 1020, "y": 600, "w": 50, "h": 34 },
+    { "type": "hay", "x": 935, "y": 500, "w": 50, "h": 36 },
+    { "type": "plank", "x": 1150, "y": 602, "w": 120, "h": 12, "angle": -8 },
+    { "type": "metal", "x": 1150, "y": 580, "w": 90, "h": 14 }
+  ]
+}
