@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Poison Honey Rescue</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: #1a0f2e; overflow: hidden;
+      touch-action: none; overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none;
+    }
+    #game-container { width: 100%; height: 100%; }
+    #game-container canvas { display: block; margin: 0 auto; }
+    #loading {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #ffd75e;
+      font-family: Verdana, sans-serif; background: #1a0f2e; z-index: 10;
+    }
+    #loading h1 { font-size: 28px; letter-spacing: 2px; text-shadow: 0 2px 8px #9333ea; }
+    #loading .bar { width: 260px; height: 14px; border: 2px solid #9333ea; border-radius: 8px; margin-top: 16px; }
+    #loading .bar div { height: 100%; width: 0%; background: linear-gradient(90deg,#f59e0b,#eab308); border-radius: 6px; transition: width .2s; }
+  </style>
+</head>
+<body>
+  <div id="loading"><h1>POISON HONEY RESCUE</h1><div class="bar"><div id="loadfill"></div></div></div>
+  <div id="game-container"></div>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
