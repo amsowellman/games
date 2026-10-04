@@ -365,8 +365,13 @@ const ScenePlay = {
             }
         }
 
-        // fell below the camera = full time
-        if (this.py < this.camY - 8) {
+        // full time: fallen below the lowest platform still on the pitch.
+        // A survivable fall just costs altitude - catch a ledge on the way down.
+        let lowestTop = Infinity;
+        for (const p of this.platforms) {
+            if (p.top < lowestTop) lowestTop = p.top;
+        }
+        if (this.py < lowestTop - 1.0) {
             this._lose();
         }
     },
