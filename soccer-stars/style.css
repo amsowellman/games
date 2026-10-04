@@ -1,0 +1,336 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+}
+
+body {
+    background: #06130b;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#game-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 100vw;
+}
+
+#game-title-bar {
+    text-align: center;
+}
+
+#game-title-bar h1 {
+    font-size: 28px;
+    color: #3ddc63;
+    text-shadow: 0 0 10px rgba(61, 220, 99, 0.5);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+#three-game {
+    position: relative;
+    width: 960px;
+    max-width: 96vw;
+    aspect-ratio: 960 / 600;
+}
+
+#three-game canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(61, 220, 99, 0.25);
+    border: 2px solid #14331f;
+    touch-action: none;
+}
+
+/* HTML overlay layer: scenes inject their UI here. */
+#ui-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-family: 'Courier New', monospace;
+}
+
+#ui-layer > * {
+    pointer-events: none;
+}
+
+#ui-layer .clickable,
+#ui-layer button {
+    pointer-events: auto;
+}
+
+.overlay-screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+}
+
+.dim {
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 8px;
+}
+
+.game-title {
+    font-size: 52px;
+    font-weight: bold;
+    color: #3ddc63;
+    text-shadow: 0 0 14px rgba(61, 220, 99, 0.6), 2px 2px 0 #06270f;
+    letter-spacing: 4px;
+}
+
+.game-title.danger {
+    color: #ff4757;
+    text-shadow: 0 0 14px rgba(255, 71, 87, 0.6), 2px 2px 0 #330011;
+}
+
+.game-title.gold {
+    color: #ffd700;
+    text-shadow: 0 0 14px rgba(255, 215, 0, 0.6), 2px 2px 0 #332200;
+}
+
+.game-subtitle {
+    font-size: 17px;
+    color: #bfe8cc;
+    text-shadow: 1px 1px 0 #06270f;
+}
+
+.game-button {
+    min-width: 230px;
+    padding: 13px 26px;
+    font-family: 'Courier New', monospace;
+    font-size: 19px;
+    font-weight: bold;
+    color: #3ddc63;
+    background: rgba(10, 30, 18, 0.92);
+    border: 2px solid #3ddc63;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: transform 0.08s, background 0.08s, color 0.08s;
+}
+
+.game-button:hover {
+    background: #14331f;
+    color: #7dff9e;
+    transform: scale(1.05);
+}
+
+.game-button:active {
+    transform: scale(0.95);
+}
+
+.game-button.danger {
+    color: #ff4757;
+    border-color: #ff4757;
+    background: rgba(40, 8, 14, 0.92);
+}
+
+.game-button.danger:hover {
+    background: #4a1020;
+    color: #ff8a96;
+}
+
+.game-button.gold {
+    color: #ffd700;
+    border-color: #ffd700;
+    background: rgba(40, 32, 4, 0.92);
+}
+
+.game-button.gold:hover {
+    background: #4a3f08;
+    color: #ffe97d;
+}
+
+.hint-text {
+    font-size: 13px;
+    color: #9fc7ad;
+    text-shadow: 1px 1px 0 #06270f;
+    animation: pulse 1.4s ease-in-out infinite;
+}
+
+.footer-text {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    color: #6f9a7e;
+    text-shadow: 1px 1px 0 #04160a;
+}
+
+.score-line {
+    font-size: 26px;
+    color: #ffd700;
+    text-shadow: 2px 2px 0 #332200;
+    font-weight: bold;
+}
+
+.best-line {
+    font-size: 16px;
+    color: #bfe8cc;
+    text-shadow: 1px 1px 0 #06270f;
+}
+
+/* Heads-up display chips used in the play scene. */
+.hud-chip {
+    position: absolute;
+    top: 12px;
+    padding: 7px 14px;
+    background: rgba(6, 22, 12, 0.85);
+    border: 2px solid #2a6a3e;
+    border-radius: 8px;
+    font-size: 17px;
+    font-weight: bold;
+    color: #d9ffe4;
+    letter-spacing: 1px;
+}
+
+#hud-score { left: 12px; }
+#hud-best  { right: 12px; }
+
+#hud-newbest {
+    left: 50%;
+    transform: translateX(-50%);
+    color: #ffd700;
+    border-color: #ffd700;
+    display: none;
+    animation: pulse 0.8s ease-in-out infinite;
+}
+
+/* Pause + instructions panels. */
+.panel {
+    background: rgba(8, 26, 15, 0.96);
+    border: 3px solid #3ddc63;
+    border-radius: 14px;
+    padding: 26px 38px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-width: 80%;
+}
+
+.panel h2 {
+    color: #3ddc63;
+    font-size: 30px;
+    letter-spacing: 3px;
+}
+
+.panel p, .panel li {
+    color: #bfe8cc;
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.panel ul {
+    list-style: none;
+}
+
+/* Touch controls (play scene, touch devices only). */
+#touch-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    display: none;
+    justify-content: space-between;
+    padding: 0 16px;
+}
+
+#touch-controls .tbtn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid #3ddc63;
+    background: rgba(10, 30, 18, 0.6);
+    color: #7dff9e;
+    font-size: 28px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+}
+
+#touch-controls .tbtn:active {
+    background: rgba(61, 220, 99, 0.35);
+}
+
+#touch-left-group {
+    display: flex;
+    gap: 12px;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+/* Boot scene loading bar. */
+.boot-bar-outer {
+    width: 320px;
+    height: 18px;
+    border: 2px solid #3ddc63;
+    border-radius: 9px;
+    overflow: hidden;
+    background: rgba(6, 22, 12, 0.9);
+}
+
+.boot-bar-inner {
+    height: 100%;
+    width: 0%;
+    background: #3ddc63;
+    transition: width 0.15s linear;
+}
+
+#controls-hint {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+    padding: 5px 15px;
+    background: #0c1a10;
+    border-radius: 5px;
+    max-width: 96vw;
+}
+
+.key {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #14331f;
+    border: 1px solid #2a5a3a;
+    border-radius: 4px;
+    color: #3ddc63;
+    font-weight: bold;
+    font-size: 11px;
+}
