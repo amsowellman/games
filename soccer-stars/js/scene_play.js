@@ -160,6 +160,14 @@ const ScenePlay = {
         this.ui.appendChild(this.scoreChip);
         this.ui.appendChild(this.bestChip);
         this.ui.appendChild(this.newBestChip);
+        // on-screen pause/options button (reachable on touch devices)
+        this.pauseBtn = Utils.el('div', 'hud-chip clickable', '\u275A\u275A');
+        this.pauseBtn.id = 'hud-pause';
+        this.pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._togglePause();
+        });
+        this.ui.appendChild(this.pauseBtn);
         Game.ui.appendChild(this.ui);
     },
 
@@ -319,8 +327,13 @@ const ScenePlay = {
         }
         this._genPlatforms(this.camY + 40);
 
-        // camera only ever climbs
-        this.camY = Math.max(this.camY, this.py - 2);
+        // camera climbs with the player, and follows them back DOWN on a fall
+        if (this.py - 2 > this.camY) {
+            this.camY = this.py - 2;
+        } else if (this.py + 1 < this.camY) {
+            // smooth camera fall: chase the player downward so they stay visible
+            this.camY += (this.py + 1 - this.camY) * Math.min(1, dt * 5);
+        }
         this.camera.position.set(this.px * 0.45, this.camY + 4.5, 12);
         this.camera.lookAt(this.px * 0.45, this.camY + 3.2, 0);
 

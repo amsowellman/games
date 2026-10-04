@@ -18,7 +18,10 @@ trophy at 200 m to lift the cup.
 | M | Music on/off |
 | 1-4 | Pick a player on the select screen |
 
-Touch devices get on-screen left / right / jump buttons during play.
+Touch devices get on-screen left / right / jump buttons during play, and a
+pause button sits in the top-right corner of the HUD on all platforms.
+Falling costs altitude but isn't instantly fatal: the camera follows you down
+and the match only ends when you drop below the lowest remaining platform.
 
 ## How it's built
 
