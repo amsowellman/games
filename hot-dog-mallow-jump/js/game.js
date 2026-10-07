@@ -21,7 +21,7 @@
 
     var state = null;
     var keys = {};
-    var touchDir = 0;
+    var touchTargetX = null;   // finger position: the hot dog steers toward it
     var highScore = 0;
     try {
         highScore = parseInt(localStorage.getItem('hdmj-high') || '0', 10) || 0;
@@ -88,13 +88,15 @@
         var s = state;
         s.t += dt;
 
-        // horizontal control
+        // horizontal control: keyboard, or steer toward the finger on touch
         var dir = 0;
         if (keys.ArrowLeft || keys.a) { dir -= 1; }
         if (keys.ArrowRight || keys.d) { dir += 1; }
-        dir += touchDir;
-        if (dir > 1) { dir = 1; }
-        if (dir < -1) { dir = -1; }
+        if (touchTargetX !== null) {
+            var dx = touchTargetX - s.px;
+            if (dx > 12) { dir += 1; }
+            if (dx < -12) { dir -= 1; }
+        }
         s.vx += dir * MOVE_ACCEL * dt;
         if (dir === 0) { s.vx *= FRICTION; }
         if (s.vx > MOVE_MAX) { s.vx = MOVE_MAX; }
@@ -329,19 +331,22 @@
         keys[k] = false;
     });
 
+    function touchPos(e) {
+        var rect = canvas.getBoundingClientRect();
+        return (e.touches[0].clientX - rect.left) * (W / rect.width);
+    }
+
     canvas.addEventListener('touchstart', function (e) {
         restartIfOver();
-        var x = e.touches[0].clientX - canvas.getBoundingClientRect().left;
-        touchDir = x < W / 2 ? -1 : 1;
+        touchTargetX = touchPos(e);
         e.preventDefault();
     }, { passive: false });
     canvas.addEventListener('touchmove', function (e) {
-        var x = e.touches[0].clientX - canvas.getBoundingClientRect().left;
-        touchDir = x < W / 2 ? -1 : 1;
+        touchTargetX = touchPos(e);
         e.preventDefault();
     }, { passive: false });
     canvas.addEventListener('touchend', function () {
-        touchDir = 0;
+        touchTargetX = null;
     });
     canvas.addEventListener('mousedown', function () {
         restartIfOver();
