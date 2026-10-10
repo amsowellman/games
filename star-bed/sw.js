@@ -1,6 +1,8 @@
-/* STAR BED service worker — cache-first so the game works offline
-   after the first load (e.g. from GitHub Pages). */
-const CACHE = "star-bed-v1";
+/* STAR BED service worker — offline support (e.g. GitHub Pages).
+   Strategy: navigations (page loads) are network-first with a cache
+   fallback, so updated game code reaches players on their next reload;
+   same-origin assets are cache-first. */
+const CACHE = "star-bed-v2";
 const ASSETS = ["./", "./index.html"];
 
 self.addEventListener("install", e => {
@@ -12,5 +14,20 @@ self.addEventListener("activate", e => {
   );
 });
 self.addEventListener("fetch", e => {
-  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request)));
+  const req = e.request;
+  if (req.mode === "navigate") {
+    // Always try the fresh page first; fall back to cache when offline.
+    e.respondWith(
+      fetch(req).then(res => {
+        if (res.ok) { // never cache 404/500 pages as the offline fallback
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+          return res;
+        }
+        return caches.match(req, { ignoreSearch: true }).then(hit => hit || res);
+      }).catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match("./")))
+    );
+    return;
+  }
+  e.respondWith(caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req)));
 });

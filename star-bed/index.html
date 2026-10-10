@@ -8,8 +8,8 @@
 <title>STAR BED</title>
 <style>
   /* Full-screen canvas, no scrolling, no text selection, no touch gestures. */
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0b0e2a; }
-  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0e2a; }
+  canvas { position: absolute; top: 0; left: 0; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 </style>
 </head>
 <body>
@@ -884,15 +884,15 @@ function drawPen(gt) {
 function ptDown(x, y) {
   audio(); // unlock sound on first touch
   if (state === "title") {
-    if (inBtn(btnPlay, x, y)) { sPop(); resetGame(); }
-    else if (inBtn(btnPenTitle, x, y)) { sPop(); enterPen(); }
+    if (inBtn(btnPlay, x, y, 16)) { sPop(); resetGame(); }
+    else if (inBtn(btnPenTitle, x, y, 16)) { sPop(); enterPen(); }
   } else if (state === "playing") {
-    if (inBtn(btnPen, x, y)) { sPop(); enterPen(); return; }
+    if (inBtn(btnPen, x, y, 8)) { sPop(); enterPen(); return; }
     if (net.state === "ready" && y > H * 0.45) { // big thumb target
       aim.active = true; aim.sx = x; aim.sy = y; aim.cx = x; aim.cy = y;
     }
   } else if (state === "pen") {
-    if (inBtn(btnBack, x, y)) { sPop(); state = "title"; return; }
+    if (inBtn(btnBack, x, y, 12)) { sPop(); state = "title"; return; }
     for (const p of penList) {
       if (Math.hypot(x - p.x, y - p.y) < SPECIES[p.sp].r + 14) {
         p.wig = 1; sBoing();
@@ -916,17 +916,27 @@ function ptUp() {
   net.vx = v.vx; net.vy = v.vy - 150; // slight upward boost for a nice arc
   net.ang = 0; net.t = 0;
 }
-function inBtn(b, x, y) { return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h; }
+function inBtn(b, x, y, pad) {
+  pad = pad || 0; // extra margin so kid fingers land even if slightly off
+  return x >= b.x - pad && x <= b.x + b.w + pad && y >= b.y - pad && y <= b.y + b.h + pad;
+}
 
 let pointerId = null;
+function canvasXY(e) {
+  // Canvas-relative coords: correct even if mobile browser UI scrolled or
+  // offset the page (URL bar show/hide). Never assume rect.top === 0.
+  const r = canvas.getBoundingClientRect();
+  return [e.clientX - r.left, e.clientY - r.top];
+}
 canvas.addEventListener("pointerdown", e => {
   if (pointerId !== null) return;
   pointerId = e.pointerId;
-  ptDown(e.clientX, e.clientY);
+  const p = canvasXY(e);
+  ptDown(p[0], p[1]);
   e.preventDefault();
 });
 canvas.addEventListener("pointermove", e => {
-  if (e.pointerId === pointerId) { ptMove(e.clientX, e.clientY); e.preventDefault(); }
+  if (e.pointerId === pointerId) { const p = canvasXY(e); ptMove(p[0], p[1]); e.preventDefault(); }
 });
 function endPtr(e) { if (e.pointerId === pointerId) { pointerId = null; ptUp(); } }
 canvas.addEventListener("pointerup", endPtr);
@@ -936,8 +946,10 @@ document.addEventListener("touchmove", e => e.preventDefault(), { passive: false
 /* ---------------- main loop ---------------- */
 let last = performance.now();
 function frame(now) {
-  const dt = clamp((now - last) / 1000, 0, 1 / 25);
-  last = now;
+  requestAnimationFrame(frame); // loop survives any unexpected error
+  try {
+    const dt = clamp((now - last) / 1000, 0, 1 / 25);
+    last = now;
   gameTime += dt;
 
   if (state === "playing") {
@@ -965,14 +977,17 @@ function frame(now) {
   else if (state === "playing") drawPlaying(now / 1000);
   else if (state === "pen") drawPen(now / 1000);
   else if (state === "gameover") drawGameOver(now / 1000);
-
-  requestAnimationFrame(frame);
+  } catch (err) { console.error("STAR BED loop error:", err); }
 }
 
 /* ---------------- boot ---------------- */
 resize();
 initStars();
 requestAnimationFrame(frame);
+// Mobile URL bar show/hide changes the visible height — re-layout on it.
+if (window.visualViewport && window.visualViewport.addEventListener) {
+  window.visualViewport.addEventListener("resize", resize);
+}
 
 /* Offline support: register a tiny cache-first service worker when served
    over HTTPS (e.g. GitHub Pages). Silently skipped on file:// or http. */
