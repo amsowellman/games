@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0e2a">
+<title>STAR BED</title>
+<style>
+  /* Full-screen canvas, no scrolling, no text selection, no touch gestures. */
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0b0e2a; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+"use strict";
+/* ============================================================
+   STAR BED — a cozy space game for a very kind game director.
+   The critters are not monsters. They are lost babies who think
+   the glowing bed is their mama. Catch them gently with the net
+   and they go live in the Pet Pen. Nobody ever gets hurt.
+   ============================================================ */
+
+/* ---------------- tiny helpers ---------------- */
+const TAU = Math.PI * 2;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+function rr(c, x, y, w, h, r) { // rounded rect path
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+/* ---------------- canvas setup ---------------- */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+let bed = { x: 0, y: 0, hitR: 62 };
+let launcher = { x: 0, y: 0 };
+let rocks = [];
+let fence = { x: 0, y: 0, w: 0, h: 0 };
+let btnPen = { x: 0, y: 0, w: 0, h: 0 };
+let btnPlay = { x: 0, y: 0, w: 0, h: 0 };
+let btnPenTitle = { x: 0, y: 0, w: 0, h: 0 };
+let btnBack = { x: 0, y: 0, w: 0, h: 0 };
+
+function layout() {
+  bed.x = W / 2; bed.y = H * 0.36;
+  launcher.x = W / 2; launcher.y = H - 90;
+  // Floating moon rocks the Bouncers ricochet off.
+  rocks = [
+    { x: W * 0.18, y: H * 0.30, r: 34, bob: rnd(0, TAU) },
+    { x: W * 0.84, y: H * 0.24, r: 28, bob: rnd(0, TAU) },
+    { x: W * 0.80, y: H * 0.62, r: 30, bob: rnd(0, TAU) }
+  ];
+  fence = { x: W * 0.06, y: H * 0.14, w: W * 0.88, h: H * 0.64 };
+  btnPen  = { x: W - 122, y: 12, w: 110, h: 42 };
+  btnPlay = { x: W / 2 - 115, y: H * 0.58, w: 230, h: 70 };
+  btnPenTitle = { x: W / 2 - 100, y: H * 0.58 + 92, w: 200, h: 56 };
+  btnBack = { x: 14, y: 14, w: 108, h: 44 };
+  buildNebula();
+}
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  layout();
+}
+window.addEventListener("resize", resize);
+
+/* ---------------- persistence (localStorage) ---------------- */
+const KEY_WAVE = "starbed_bestWave", KEY_CAUGHT = "starbed_bestCaught", KEY_PETS = "starbed_pets";
+function loadNum(k) { try { const v = localStorage.getItem(k); return v ? +v : 0; } catch (e) { return 0; } }
+function saveNum(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+function loadPets() {
+  try {
+    const a = JSON.parse(localStorage.getItem(KEY_PETS) || "[]");
+    return Array.isArray(a) ? a.filter(t => SPECIES[t]) : [];
+  } catch (e) { return []; }
+}
+function savePets() { try { localStorage.setItem(KEY_PETS, JSON.stringify(penTypes.slice(-120))); } catch (e) {} }
+
+/* ---------------- sound (WebAudio, no files) ---------------- */
+let AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === "suspended") AC.resume();
+  return AC;
+}
+function tone(f0, f1, dur, type, vol, delay) {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime + (delay || 0);
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t0);
+  o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+const sBoing = () => { tone(220, 660, 0.2, "triangle", 0.22); tone(660, 330, 0.24, "sine", 0.13, 0.16); };
+const sAww   = () => { tone(520, 330, 0.4, "sine", 0.18); };
+const sChime = () => { tone(880, 880, 0.15, "sine", 0.16); tone(1318, 1318, 0.3, "sine", 0.13, 0.12); };
+const sPop   = () => { tone(300, 180, 0.08, "square", 0.1); };
+const sYay   = () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.14, "triangle", 0.13, i * 0.07)); };
+function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+/* ---------------- glow sprite (cached, cheap) ---------------- */
+function makeGlow(color) {
+  const s = 128, c = document.createElement("canvas");
+  c.width = c.height = s;
+  const g = c.getContext("2d");
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, color); gr.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, s, s);
+  return c;
+}
+const glowGold = makeGlow("rgba(255,215,120,0.55)");
+const glowBlue = makeGlow("rgba(120,180,255,0.4)");
+
+/* ---------------- background ---------------- */
+let bgStars = [], shooting = [], nebula = null;
+function initStars() {
+  bgStars = [];
+  for (let i = 0; i < 90; i++) bgStars.push({ x: Math.random(), y: Math.random(), r: rnd(0.6, 1.8), sp: rnd(2, 8), tw: rnd(0, TAU) });
+}
+function buildNebula() { // big soft color clouds, drawn once per resize
+  nebula = document.createElement("canvas");
+  nebula.width = W; nebula.height = H;
+  const g = nebula.getContext("2d");
+  g.fillStyle = "#0b0e2a"; g.fillRect(0, 0, W, H);
+  const blob = (x, y, r, col) => {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, col); gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  };
+  blob(W * 0.2, H * 0.2, Math.max(W, H) * 0.5, "rgba(90,60,180,0.35)");
+  blob(W * 0.85, H * 0.45, Math.max(W, H) * 0.45, "rgba(40,120,160,0.28)");
+  blob(W * 0.5, H * 0.9, Math.max(W, H) * 0.5, "rgba(150,70,130,0.22)");
+}
+
+/* ---------------- particles + floating text ---------------- */
+const parts = [];
+function addPart(p) { if (parts.length < 260) parts.push(p); }
+function burst(x, y, colors, n, spd, kind) {
+  for (let i = 0; i < n; i++) {
+    const a = rnd(0, TAU), s = rnd(spd * 0.3, spd);
+    addPart({ kind: kind || "spark", x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      t: 0, life: rnd(0.4, 0.9), r: rnd(1.5, 3.5), col: colors[(Math.random() * colors.length) | 0], rot: rnd(0, TAU) });
+  }
+}
+function confetti(x, y) {
+  const cols = ["#ff5e7a", "#ffd23e", "#4da3ff", "#7ef29a", "#b06cf0", "#ffffff"];
+  for (let i = 0; i < 40; i++) {
+    const a = rnd(0, TAU), s = rnd(60, 220);
+    addPart({ kind: "conf", x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 120,
+      t: 0, life: rnd(0.8, 1.6), r: rnd(2, 4), col: cols[(Math.random() * cols.length) | 0], rot: rnd(0, TAU) });
+  }
+}
+const floaties = [];
+function floatText(x, y, str, col) { floaties.push({ x, y, str, col, t: 0, life: 1.1 }); }
+
+/* ---------------- species roster ---------------- */
+const SPECIES = {
+  bloop:       { r: 20, hp: 1, body: "#4da3ff", dark: "#2b6fc4" },
+  zippy:       { r: 14, hp: 1, body: "#ffd23e", dark: "#c79a12" },
+  chonk:       { r: 34, hp: 2, body: "#ff9ecb", dark: "#d46a9c" },
+  spiker:      { r: 18, hp: 1, body: "#b06cf0", dark: "#7c3fb8" },
+  invisibloop: { r: 18, hp: 1, body: "#8fe3ff", dark: "#4fb3d9" },
+  grandpa:     { r: 12, hp: 1, body: "#c9c9d6", dark: "#8f8fa3" }
+};
+
+/* ---------------- game state ---------------- */
+let state = "title";               // title | playing | pen | gameover
+let hearts = 5, score = 0, wave = 0;
+let critters = [], flights = [];
+let waveState = "rest", restT = 1.0, queue = [], spawnTimer = 0, spawnGap = 2;
+let penTypes = loadPets();
+let penList = [], penT = 0;
+let bestWave = loadNum(KEY_WAVE), bestCaught = loadNum(KEY_CAUGHT);
+let gameTime = 0;
+
+const net = { state: "ready", x: 0, y: 0, vx: 0, vy: 0, ang: 0, t: 0, rx: 0, ry: 0, retT: 0 };
+const aim = { active: false, sx: 0, sy: 0, cx: 0, cy: 0 };
+const GRAV = 1000, NET_R = 22;
+
+/* ---------------- critters ---------------- */
+function waveSpeed() { return Math.min(16 + (wave - 1) * 4.5, 85); }
+
+function makeCritter(sp, x, y) {
+  const S = SPECIES[sp];
+  const c = {
+    sp, x, y, vx: 0, vy: 0, hp: S.hp, t: 0, phase: rnd(0, TAU),
+    state: "move", dizzy: false, alpha: 1, spikesOut: false, spikeT: rnd(0, 3),
+    spdM: rnd(0.85, 1.2), pattern: "drift",
+    dartT: 0, darting: false, dx: 0, dy: 0,
+    circleAng: 0, circleR: 0, orbDir: 1, orbSpd: 1, shrink: 12
+  };
+  // Movement style per species. Bloops sometimes learn to ricochet off
+  // moon rocks in later waves (the "Bouncer" pattern).
+  if (sp === "bloop") c.pattern = (wave >= 6 && Math.random() < 0.45) ? "bounce" : "sine";
+  if (sp === "zippy") { c.pattern = "dart"; c.vx = 0; }
+  if (sp === "chonk") c.pattern = "circle";
+  if (sp === "invisibloop") c.pattern = "sine";
+  if (c.pattern === "bounce") {
+    const dx = bed.x - x, dy = bed.y - y, d = Math.hypot(dx, dy) || 1, s = waveSpeed() * 1.4;
+    c.vx = dx / d * s; c.vy = dy / d * s;
+  }
+  if (c.pattern === "circle") {
+    c.circleAng = Math.atan2(y - bed.y, x - bed.x);
+    c.circleR = Math.max(Math.hypot(x - bed.x, y - bed.y), 130);
+    c.orbDir = Math.random() < 0.5 ? -1 : 1;
+    c.orbSpd = rnd(0.55, 0.95) + wave * 0.02;
+    c.shrink = Math.min(10 + wave * 1.5, 26);
+  }
+  return c;
+}
+
+function spawnCritter(sp) {
+  // Enter from a random edge, never right on top of the bed.
+  const m = 46; let x, y;
+  const side = (Math.random() * 4) | 0;
+  if (side === 0) { x = rnd(0, W); y = -m; }
+  else if (side === 1) { x = W + m; y = rnd(0, H); }
+  else if (side === 2) { x = rnd(0, W); y = H + m; }
+  else { x = -m; y = rnd(0, H); }
+  if (Math.hypot(x - bed.x, y - bed.y) < 220) { x = -m; y = rnd(0, H); }
+  critters.push(makeCritter(sp, x, y));
+}
+
+function buildWave(w) {
+  const q = [];
+  const n = Math.min(3 + Math.floor(w * 0.9), 13);
+  for (let i = 0; i < n; i++) {
+    let sp = "bloop";
+    const r = Math.random();
+    if (w >= 5 && r < 0.13) sp = "chonk";
+    else if (w >= 4 && r < 0.30) sp = "spiker";
+    else if (w >= 3 && r < 0.36) sp = "invisibloop";
+    else if (w >= 2 && r < 0.66) sp = "zippy";
+    q.push(sp);
+  }
+  if (w >= 3 && Math.random() < 0.35) q[q.length - 1] = "grandpa"; // rare visitor
+  return q;
+}
+
+function startWave() {
+  wave++;
+  queue = buildWave(wave);
+  spawnGap = clamp(2.4 - wave * 0.15, 0.8, 2.4);
+  spawnTimer = 0.6;
+  waveState = "spawning";
+}
+
+function nibble(c) {
+  hearts--;
+  sAww(); buzz(30);
+  burst(c.x, c.y, ["#ff8fa3", "#ffd0da"], 10, 90);
+  // The baby bounces away happily — it got a nibble and a hello.
+  const dx = c.x - bed.x, dy = c.y - bed.y, d = Math.hypot(dx, dy) || 1;
+  c.state = "flee"; c.vx = dx / d * 170; c.vy = dy / d * 170;
+  if (hearts <= 0) gameOver();
+}
+
+function gameOver() {
+  state = "gameover";
+  bestWave = Math.max(bestWave, wave);
+  bestCaught = Math.max(bestCaught, score);
+  saveNum(KEY_WAVE, bestWave); saveNum(KEY_CAUGHT, bestCaught);
+}
+
+function resetGame() {
+  hearts = 5; score = 0; wave = 0;
+  critters = []; flights = [];
+  waveState = "rest"; restT = 1.0;
+  net.state = "ready"; aim.active = false;
+  state = "playing";
+}
+
+/* ---------------- catching ---------------- */
+function tryCatch(c, i) {
+  const S = SPECIES[c.sp];
+  // Spiker protects itself with soft spikes while they are popped out —
+  // the net bounces gently off. Time the throw for when they retract!
+  if (c.sp === "spiker" && c.spikesOut) {
+    net.vx = -net.vx * 0.45; net.vy = Math.abs(net.vy) * 0.3 + 60;
+    sPop();
+    burst(net.x, net.y, ["#b06cf0", "#e0c8ff"], 6, 70);
+    return false;
+  }
+  c.hp--;
+  if (c.hp > 0) { // Chonk's first hit: just dizzy, still okay!
+    c.dizzy = true; sPop();
+    burst(c.x, c.y, ["#ff9ecb", "#ffffff"], 8, 80);
+    return false;
+  }
+  // Caught! Scooped up, off to the Pet Pen.
+  critters.splice(i, 1);
+  flights.push({ sp: c.sp, fx: c.x, fy: c.y, x: c.x, y: c.y, t: 0 });
+  sBoing(); buzz(20);
+  burst(c.x, c.y, ["#fff7ae", "#ffffff", "#aee6ff"], 14, 130, "star");
+  if (c.sp === "grandpa") {
+    score += 5;
+    confetti(c.x, c.y); sYay();
+    floatText(c.x, c.y - 30, "+5 GRANDPA!", "#ffe98a");
+  } else {
+    score += 1;
+  }
+  return true;
+}
+
+/* ---------------- update: critters ---------------- */
+function updateCritters(dt) {
+  for (let i = critters.length - 1; i >= 0; i--) {
+    const c = critters[i];
+    c.t += dt;
+    if (c.state === "flee") {
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      if (c.x < -100 || c.x > W + 100 || c.y < -100 || c.y > H + 100) critters.splice(i, 1);
+      continue;
+    }
+    const dx = bed.x - c.x, dy = bed.y - c.y, d = Math.hypot(dx, dy) || 1;
+    const sp = waveSpeed() * c.spdM;
+
+    if (c.pattern === "sine") {
+      const nx = dx / d, ny = dy / d, sw = Math.sin(c.t * 2.2 + c.phase) * sp * 0.9;
+      c.vx = nx * sp - ny * sw; c.vy = ny * sp + nx * sw;
+    } else if (c.pattern === "dart") {
+      c.dartT -= dt;
+      if (c.dartT <= 0) {
+        c.darting = !c.darting;
+        c.dartT = c.darting ? rnd(0.4, 0.7) : rnd(0.7, 1.2);
+        if (c.darting) { c.dx = dx / d; c.dy = dy / d; }
+      }
+      c.vx = c.darting ? c.dx * sp * 3.2 : 0;
+      c.vy = c.darting ? c.dy * sp * 3.2 : 0;
+    } else if (c.pattern === "circle") {
+      // Loop politely around the bed before committing.
+      c.circleAng += c.orbDir * c.orbSpd * dt;
+      c.circleR -= c.shrink * dt;
+      if (c.circleR < 55) c.pattern = "drift";
+      c.x = bed.x + Math.cos(c.circleAng) * c.circleR;
+      c.y = bed.y + Math.sin(c.circleAng) * c.circleR;
+    } else if (c.pattern === "bounce") {
+      // Gentle homing toward the bed + ricochets.
+      c.vx += (dx / d) * 22 * dt; c.vy += (dy / d) * 22 * dt;
+      for (const rk of rocks) {
+        const rdx = c.x - rk.x, rdy = c.y - rk.y, rd = Math.hypot(rdx, rdy) || 1, min = rk.r + SPECIES[c.sp].r;
+        if (rd < min) {
+          const nx = rdx / rd, ny = rdy / rd, dot = c.vx * nx + c.vy * ny;
+          c.vx -= 2 * dot * nx; c.vy -= 2 * dot * ny;
+          c.x = rk.x + nx * (min + 1); c.y = rk.y + ny * (min + 1);
+        }
+      }
+      if (c.x < 10 && c.vx < 0) { c.vx = -c.vx; c.x = 10; }
+      if (c.x > W - 10 && c.vx > 0) { c.vx = -c.vx; c.x = W - 10; }
+      if (c.y < 10 && c.vy < 0) { c.vy = -c.vy; c.y = 10; }
+      if (c.y > H - 10 && c.vy > 0) { c.vy = -c.vy; c.y = H - 10; }
+    } else { // drift
+      c.vx = dx / d * sp; c.vy = dy / d * sp;
+    }
+
+    if (c.pattern !== "circle") { c.x += c.vx * dt; c.y += c.vy * dt; }
+
+    // Spiker rhythm: spikes pop out for 1.5s, retract for 1.5s.
+    if (c.sp === "spiker") c.spikesOut = (c.spikeT += dt) % 3 < 1.5;
+    // Invisibloop fades in and out; only the eyes stay visible.
+    if (c.sp === "invisibloop") c.alpha = 0.5 + 0.5 * Math.sin(c.t * 1.3 + c.phase);
+
+    // Reached the bed: nibble time.
+    if (d < bed.hitR + SPECIES[c.sp].r * 0.4) { nibble(c); critters.splice(i, 1); }
+  }
+}
+
+/* ---------------- update: net ---------------- */
+function updateNet(dt) {
+  if (net.state === "flying") {
+    net.t += dt;
+    net.vy += GRAV * dt;
+    net.x += net.vx * dt; net.y += net.vy * dt;
+    net.ang += 12 * dt;
+    // Net vs critters
+    for (let i = critters.length - 1; i >= 0; i--) {
+      const c = critters[i], S = SPECIES[c.sp];
+      if (Math.hypot(net.x - c.x, net.y - c.y) < NET_R + S.r) {
+        if (tryCatch(c, i)) { net.state = "gone"; net.retT = 0; break; }
+      }
+    }
+    // Missed: fly back automatically.
+    if (net.state === "flying" && (net.t > 4 || net.x < -70 || net.x > W + 70 || net.y < -70 || net.y > H + 70)) {
+      net.state = "returning"; net.rx = net.x; net.ry = net.y; net.retT = 0;
+    }
+  } else if (net.state === "returning") {
+    net.retT += dt;
+    const e = Math.min(1, net.retT / 0.4);
+    net.x = lerp(net.rx, launcher.x, e);
+    net.y = lerp(net.ry, launcher.y, e);
+    net.ang += 8 * dt;
+    if (e >= 1) net.state = "ready";
+  } else if (net.state === "gone") {
+    net.retT += dt;
+    if (net.retT > 0.5) net.state = "ready"; // short kind cooldown after a catch
+  } else {
+    net.x = launcher.x; net.y = launcher.y;
+  }
+}
+
+/* ---------------- update: flights to the Pet Pen ---------------- */
+function updateFlights(dt) {
+  for (let i = flights.length - 1; i >= 0; i--) {
+    const f = flights[i];
+    f.t += dt;
+    const e = Math.min(1, f.t / 0.9), ee = 1 - (1 - e) * (1 - e);
+    f.x = lerp(f.fx, btnPen.x + btnPen.w / 2, ee);
+    f.y = lerp(f.fy, btnPen.y + btnPen.h / 2, ee) - Math.sin(f.t * Math.PI) * 50;
+    if (Math.random() < 0.5) addPart({ kind: "spark", x: f.x + rnd(-8, 8), y: f.y + rnd(-8, 8),
+      vx: rnd(-15, 15), vy: rnd(-15, 15), t: 0, life: 0.5, r: rnd(1, 2.5), col: "#fff2a8", rot: 0 });
+    if (e >= 1) {
+      flights.splice(i, 1);
+      penTypes.push(f.sp);
+      savePets();
+      burst(btnPen.x + btnPen.w / 2, btnPen.y + btnPen.h / 2, ["#aee6ff", "#fff2a8"], 8, 80);
+    }
+  }
+}
+
+/* ---------------- update: particles / floats / bg ---------------- */
+function updateParts(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.t += dt;
+    if (p.t >= p.life) { parts.splice(i, 1); continue; }
+    if (p.kind === "conf") p.vy += 260 * dt; // confetti falls
+    if (p.kind === "tw") p.vy -= 6 * dt;     // twinkles drift up
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.kind !== "tw") { p.vx *= 0.985; p.vy *= 0.985; }
+  }
+  for (let i = floaties.length - 1; i >= 0; i--) {
+    const f = floaties[i]; f.t += dt; f.y -= 30 * dt;
+    if (f.t >= f.life) floaties.splice(i, 1);
+  }
+}
+function updateBg(dt) {
+  for (const s of bgStars) { s.tw += dt * 2; }
+  if (Math.random() < dt / 7) shooting.push({ x: rnd(0, W), y: rnd(0, H * 0.3), vx: rnd(160, 260), vy: rnd(60, 120), t: 0, life: rnd(0.6, 1) });
+  for (let i = shooting.length - 1; i >= 0; i--) {
+    const s = shooting[i]; s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
+    if (s.t >= s.life) shooting.splice(i, 1);
+  }
+}
+
+/* ---------------- update: pet pen residents ---------------- */
+function enterPen() {
+  state = "pen";
+  penList = [];
+  const shown = penTypes.slice(-60);
+  for (const sp of shown) {
+    penList.push({
+      sp, x: rnd(fence.x + 40, fence.x + fence.w - 40), y: rnd(fence.y + 40, fence.y + fence.h - 40),
+      vx: 0, vy: 0, t: rnd(0, 3), phase: rnd(0, TAU), wig: 0, dizzy: false, alpha: 1, spikesOut: false, spikeT: rnd(0, 3),
+      mode: "wander", timer: rnd(0.5, 2), tx: 0, ty: 0, target: null
+    });
+    penList[penList.length - 1].tx = penList[penList.length - 1].x;
+    penList[penList.length - 1].ty = penList[penList.length - 1].y;
+  }
+}
+function updatePen(dt) {
+  penT += dt;
+  for (const p of penList) {
+    p.t += dt; p.wig = Math.max(0, p.wig - dt * 2);
+    if (p.sp === "spiker") p.spikesOut = (p.spikeT += dt) % 3 < 1.5;
+    p.timer -= dt;
+    if (p.mode === "wander") {
+      const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+      if (d > 6) { p.x += dx / d * 28 * dt; p.y += dy / d * 28 * dt; p.vx = dx / d * 28; p.vy = dy / d * 28; }
+      else { p.vx = 0; p.vy = 0; }
+      if (p.timer <= 0) {
+        const r = Math.random();
+        if (r < 0.25) { p.mode = "nap"; p.timer = rnd(2.5, 5); }
+        else if (r < 0.4 && penList.length > 1) { p.mode = "chase"; p.timer = rnd(1.5, 2.5); p.target = penList[(Math.random() * penList.length) | 0]; }
+        else { p.mode = "wander"; p.timer = rnd(1, 3); p.tx = rnd(fence.x + 40, fence.x + fence.w - 40); p.ty = rnd(fence.y + 40, fence.y + fence.h - 40); }
+      }
+    } else if (p.mode === "nap") {
+      p.vx = 0; p.vy = 0;
+      if (Math.random() < dt * 1.2) addPart({ kind: "zz", x: p.x + 10, y: p.y - SPECIES[p.sp].r - 4, vx: 12, vy: -22, t: 0, life: 1.2, r: 10, col: "#cfd8ff", rot: 0 });
+      if (p.timer <= 0) { p.mode = "wander"; p.timer = rnd(1, 3); p.tx = rnd(fence.x + 40, fence.x + fence.w - 40); p.ty = rnd(fence.y + 40, fence.y + fence.h - 40); }
+    } else if (p.mode === "chase") {
+      const o = p.target;
+      if (o) {
+        const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy) || 1;
+        if (d > 24) { p.x += dx / d * 52 * dt; p.y += dy / d * 52 * dt; p.vx = dx / d * 52; p.vy = dy / d * 52; }
+      }
+      if (p.timer <= 0) { p.mode = "wander"; p.timer = rnd(1, 3); p.tx = p.x; p.ty = p.y; }
+    }
+    // Keep everyone inside the cozy fence.
+    p.x = clamp(p.x, fence.x + 24, fence.x + fence.w - 24);
+    p.y = clamp(p.y, fence.y + 24, fence.y + fence.h - 24);
+  }
+}
+
+/* ---------------- drawing: critters ---------------- */
+function drawEyes(c, r, blink) {
+  // Pupils look toward the bed — everyone loves the bed.
+  const dx = bed.x - c.x, dy = bed.y - c.y, d = Math.hypot(dx, dy) || 1;
+  const lx = dx / d * r * 0.22, ly = dy / d * r * 0.22;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(s * r * 0.42, -r * 0.25, r * 0.3, blink ? r * 0.06 : r * 0.34, 0, 0, TAU);
+    ctx.fillStyle = "#ffffff"; ctx.fill();
+    if (!blink) {
+      ctx.beginPath();
+      ctx.arc(s * r * 0.42 + lx, -r * 0.25 + ly, r * 0.15, 0, TAU);
+      ctx.fillStyle = "#22283f"; ctx.fill();
+    }
+  }
+}
+function drawCritter(c) {
+  const S = SPECIES[c.sp], r = S.r;
+  const blink = (c.t % 3.4) > 3.25; // occasional blink
+  ctx.save();
+  ctx.translate(c.x, c.y + Math.sin(c.t * 5 + c.phase) * 2);
+  if (c.dizzy) ctx.rotate(Math.sin(c.t * 10) * 0.22);
+  else ctx.rotate(Math.sin(c.t * 6 + c.phase) * 0.06);
+
+  if (c.sp === "zippy") { // arrow shape faces where it's going
+    ctx.rotate(Math.atan2(c.vy || 0.001, c.vx || 0.001));
+  }
+
+  // Body
+  const a = c.sp === "invisibloop" ? 0.08 + 0.4 * c.alpha : 1;
+  ctx.globalAlpha = a;
+  if (c.sp === "zippy") {
+    ctx.beginPath();
+    ctx.moveTo(r * 1.4, 0); ctx.lineTo(-r, r * 0.85); ctx.lineTo(-r * 0.4, 0); ctx.lineTo(-r, -r * 0.85);
+    ctx.closePath();
+    ctx.fillStyle = S.body; ctx.fill();
+    ctx.strokeStyle = S.dark; ctx.lineWidth = 2; ctx.stroke();
+  } else if (c.sp === "spiker") {
+    const len = c.spikesOut ? 13 : 3.5;
+    ctx.fillStyle = S.dark;
+    for (let i = 0; i < 9; i++) {
+      const ang = i / 9 * TAU + c.t * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang) * (r - 2), Math.sin(ang) * (r - 2));
+      ctx.lineTo(Math.cos(ang + 0.18) * (r + len), Math.sin(ang + 0.18) * (r + len));
+      ctx.lineTo(Math.cos(ang + 0.36) * (r - 2), Math.sin(ang + 0.36) * (r - 2));
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
+    ctx.fillStyle = S.body; ctx.fill();
+    ctx.strokeStyle = S.dark; ctx.lineWidth = 2; ctx.stroke();
+  } else {
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.2, 0, 0, r * 1.1);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.25, S.body); g.addColorStop(1, S.dark);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = S.dark; ctx.lineWidth = 2; ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Face
+  const ey = c.sp === "chonk" ? -r * 0.3 : -r * 0.2;
+  const er = c.sp === "chonk" ? r * 0.4 : r * 0.75;
+  ctx.globalAlpha = c.sp === "invisibloop" ? 0.92 : 1; // eyes always show a little
+  if (c.sp === "chonk") { // blush + tiny mouth
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.beginPath(); ctx.arc(-r * 0.6, r * 0.05, r * 0.16, 0, TAU); ctx.arc(r * 0.6, r * 0.05, r * 0.16, 0, TAU); ctx.fill();
+  }
+  drawEyes(c, er, blink);
+  // Smile
+  ctx.beginPath();
+  ctx.arc(0, er * 0.35, er * 0.3, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.strokeStyle = "rgba(30,30,60,0.8)"; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  if (c.sp === "grandpa") { // stardust beard + tuft
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.arc(i * r * 0.3, r * 0.75 + Math.abs(i) * r * 0.12, 1.6, 0, TAU);
+      ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(0, -r * 0.95, 2, 0, TAU); ctx.fill();
+  }
+  if (c.dizzy) { // little stars circling a dizzy head
+    for (let i = 0; i < 3; i++) {
+      const ang = c.t * 4 + i / 3 * TAU;
+      drawStar4(Math.cos(ang) * r * 1.1, -r * 1.1 + Math.sin(ang) * r * 0.3, 3, "#ffe98a");
+    }
+  }
+  ctx.restore();
+}
+function drawStar4(x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 2); ctx.quadraticCurveTo(0, 0, s * 2, 0);
+  ctx.quadraticCurveTo(0, 0, 0, s * 2); ctx.quadraticCurveTo(0, 0, -s * 2, 0);
+  ctx.quadraticCurveTo(0, 0, 0, -s * 2);
+  ctx.fill(); ctx.restore();
+}
+
+/* ---------------- drawing: the Star Bed ---------------- */
+function drawBed(gt) {
+  const pulse = 1 + Math.sin(gt * 1.7) * 0.03;
+  ctx.save();
+  ctx.translate(bed.x, bed.y);
+  ctx.globalAlpha = 0.85 + Math.sin(gt * 1.7) * 0.12;
+  ctx.drawImage(glowGold, -150, -150, 300, 300);
+  ctx.globalAlpha = 1;
+  ctx.scale(pulse, pulse);
+  const wood = "#f2c15f", woodDark = "#b57f2e",Blanket = "#e88aa0";
+  ctx.lineWidth = 3; ctx.strokeStyle = woodDark;
+  // Posts
+  ctx.fillStyle = wood;
+  rr(ctx, -58, -52, 10, 118, 4); ctx.fill(); ctx.stroke();
+  rr(ctx, 48, -52, 10, 118, 4); ctx.fill(); ctx.stroke();
+  // Bunks (mattress + blanket + pillow)
+  const bunk = (y, col) => {
+    ctx.fillStyle = "#fff6e8"; rr(ctx, -52, y, 104, 16, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = col; rr(ctx, -40, y + 3, 74, 11, 5); ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(-38, y + 8, 6, 0, TAU); ctx.fill();
+  };
+  bunk(-42, Blanket);
+  bunk(28, "#8fd0ff");
+  // Little ladder
+  ctx.strokeStyle = woodDark; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(66, -46); ctx.lineTo(66, 30);
+  ctx.moveTo(76, -46); ctx.lineTo(76, 30);
+  for (let i = 0; i < 4; i++) { ctx.moveTo(66, -36 + i * 18); ctx.lineTo(76, -36 + i * 18); }
+  ctx.stroke();
+  ctx.restore();
+  // Soft twinkles drifting off the blanket
+  if (Math.random() < 0.06) {
+    addPart({ kind: "tw", x: bed.x + rnd(-50, 50), y: bed.y + rnd(-30, 40), vx: 0, vy: -rnd(8, 22), t: 0, life: rnd(1, 2), r: rnd(1.5, 3), col: "#ffe9a8", rot: 0 });
+  }
+}
+function drawHeart(x, y, s, on) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s / 10, s / 10);
+  ctx.fillStyle = on ? "#ff5e7a" : "rgba(255,255,255,0.18)";
+  ctx.beginPath(); ctx.arc(-5, -3, 5.5, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(5, -3, 5.5, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-9.7, -0.5); ctx.lineTo(9.7, -0.5); ctx.lineTo(0, 10); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------------- drawing: net & launcher ---------------- */
+function drawNetRing(x, y, ang, r) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  ctx.strokeStyle = "#eef4ff"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.82, 0, 0, TAU); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(238,244,255,0.7)";
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.55, r * 0.82, 0, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.2, r * 0.82, 0, 0, TAU); ctx.stroke();
+  ctx.restore();
+}
+function drawLauncher(gt) {
+  // Glowing launch pad
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(glowBlue, launcher.x - 60, launcher.y - 60, 120, 120);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#2c3364"; ctx.strokeStyle = "#8fa2ff"; ctx.lineWidth = 3;
+  rr(ctx, launcher.x - 34, launcher.y - 10, 68, 30, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#8fa2ff";
+  ctx.font = "16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("🐱", launcher.x, launcher.y + 6);
+  ctx.restore();
+  if (aim.active) {
+    // Slingshot band from pad to thumb
+    ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(launcher.x, launcher.y); ctx.lineTo(aim.cx, aim.cy); ctx.stroke();
+    // Dotted trajectory preview
+    let px = launcher.x, py = launcher.y;
+    const pull = launchVel();
+    let vx = pull.vx, vy = pull.vy;
+    ctx.fillStyle = "rgba(255,244,180,0.9)";
+    for (let i = 0; i < 30; i++) {
+      const st = 1 / 30;
+      px += vx * st; py += vy * st; vy += GRAV * st;
+      if (i % 2 === 0) { ctx.beginPath(); ctx.arc(px, py, 3, 0, TAU); ctx.fill(); }
+      if (py > H + 40 || px < -40 || px > W + 40) break;
+    }
+    // Net waiting on the pad, pulled with the thumb
+    drawNetRing(aim.cx, aim.cy, gt * 2, NET_R * 0.9);
+  } else if (net.state === "ready") {
+    drawNetRing(launcher.x, launcher.y - 18, Math.sin(gt * 1.5) * 0.2, NET_R * 0.9);
+  }
+}
+function launchVel() {
+  const dx = aim.sx - aim.cx, dy = aim.sy - aim.cy;
+  const len = Math.hypot(dx, dy);
+  const pw = Math.min(len, 170) * 7;
+  if (len < 1) return { vx: 0, vy: 0 };
+  return { vx: dx / len * pw, vy: dy / len * pw };
+}
+
+/* ---------------- drawing: screens ---------------- */
+function drawButton(b, label, sub, col) {
+  ctx.save();
+  ctx.fillStyle = col || "#3a4390";
+  ctx.strokeStyle = "#aab6ff"; ctx.lineWidth = 3;
+  rr(ctx, b.x, b.y, b.w, b.h, 20); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "bold 26px 'Comic Sans MS','Chalkboard SE',sans-serif";
+  ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + (sub ? -8 : 0));
+  if (sub) { ctx.font = "15px sans-serif"; ctx.fillStyle = "#c9d2ff"; ctx.fillText(sub, b.x + b.w / 2, b.y + b.h / 2 + 16); }
+  ctx.restore();
+}
+function drawBg(gt) {
+  ctx.drawImage(nebula, 0, 0);
+  for (const s of bgStars) {
+    ctx.globalAlpha = 0.4 + 0.5 * (0.5 + 0.5 * Math.sin(s.tw));
+    ctx.fillStyle = "#dfe8ff";
+    ctx.beginPath(); ctx.arc(s.x * W, (s.y * H + gt * s.sp) % H, s.r, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (const s of shooting) {
+    ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.15, s.y - s.vy * 0.15); ctx.stroke();
+  }
+  // Moon rocks
+  for (const rk of rocks) {
+    const y = rk.y + Math.sin(gt * 0.7 + rk.bob) * 4;
+    ctx.fillStyle = "#6b7396"; ctx.strokeStyle = "#464d6e"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(rk.x, y, rk.r, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#565e84";
+    ctx.beginPath(); ctx.arc(rk.x - rk.r * 0.3, y - rk.r * 0.2, rk.r * 0.2, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(rk.x + rk.r * 0.25, y + rk.r * 0.3, rk.r * 0.14, 0, TAU); ctx.fill();
+  }
+}
+function drawParticles() {
+  for (const p of parts) {
+    const a = 1 - p.t / p.life;
+    ctx.globalAlpha = Math.max(0, a);
+    if (p.kind === "conf") {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot + p.t * 6);
+      ctx.fillStyle = p.col; ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2);
+      ctx.restore();
+    } else if (p.kind === "star" || p.kind === "tw") {
+      drawStar4(p.x, p.y, p.r * (0.5 + a), p.col);
+    } else if (p.kind === "zz") {
+      ctx.fillStyle = p.col; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("z", p.x, p.y);
+    } else {
+      ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * a, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  for (const f of floaties) {
+    ctx.globalAlpha = 1 - f.t / f.life;
+    ctx.fillStyle = f.col; ctx.font = "bold 18px 'Comic Sans MS','Chalkboard SE',sans-serif";
+    ctx.textAlign = "center"; ctx.fillText(f.str, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawMascot(gt, x, y, s) {
+  // Bloop, the mascot: bounces and waves at the player.
+  const bounce = Math.abs(Math.sin(gt * 3)) * 14;
+  const c = { sp: "bloop", x: 0, y: 0, t: gt, phase: 0, vx: 1, vy: 0, dizzy: false, alpha: 1, spikesOut: false };
+  ctx.save(); ctx.translate(x, y - bounce); ctx.scale(s, s);
+  drawCritter(c);
+  // Waving arm
+  ctx.strokeStyle = "#2b6fc4"; ctx.lineWidth = 3.5; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-16, 4);
+  ctx.quadraticCurveTo(-30, -2 + Math.sin(gt * 6) * 8, -34, -14 + Math.sin(gt * 6) * 6);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawTitle(gt) {
+  drawBg(gt);
+  // Title
+  ctx.save();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "bold 52px 'Comic Sans MS','Chalkboard SE',sans-serif";
+  ctx.shadowColor = "#ffd76b"; ctx.shadowBlur = 24;
+  ctx.fillStyle = "#fff3c8";
+  ctx.fillText("STAR BED", W / 2, H * 0.22);
+  ctx.shadowBlur = 0;
+  ctx.font = "16px sans-serif"; ctx.fillStyle = "#aab6ff";
+  ctx.fillText("catch the lost babies · tuck them in safe", W / 2, H * 0.22 + 44);
+  ctx.restore();
+  drawMascot(gt, W / 2 + W * 0.28, H * 0.22, 1.5);
+  drawBed(gt);
+  drawButton(btnPlay, "▶ PLAY");
+  drawButton(btnPenTitle, "🐾 PET PEN", penTypes.length + " friends waiting", "#4a3a80");
+  ctx.fillStyle = "#8f9ac9"; ctx.font = "15px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("Best wave: " + bestWave + "   ·   Critters saved: " + bestCaught, W / 2, btnPenTitle.y + btnPenTitle.h + 34);
+}
+function drawHUD() {
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.fillStyle = "#dfe8ff"; ctx.font = "bold 20px sans-serif";
+  ctx.fillText("Wave " + wave, 14, 14);
+  ctx.font = "15px sans-serif"; ctx.fillStyle = "#aab6ff";
+  ctx.fillText("Saved: " + score, 14, 40);
+  // Pet Pen button with live count
+  drawButton(btnPen, "🐾 " + penTypes.length, null, "#4a3a80");
+  // Hearts above the bed
+  const total = 5, hw = 26;
+  const startX = bed.x - (total - 1) * hw / 2;
+  for (let i = 0; i < total; i++) drawHeart(startX + i * hw, bed.y - 108, 20, i < hearts);
+  // Wave banner between waves
+  if (waveState === "rest") {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(255,243,200," + clamp(restT, 0, 1) + ")";
+    ctx.font = "bold 30px 'Comic Sans MS','Chalkboard SE',sans-serif";
+    ctx.fillText("Wave " + (wave + 1) + " incoming…", W / 2, H * 0.52);
+  }
+}
+function drawPlaying(gt) {
+  drawBg(gt);
+  drawBed(gt);
+  for (const c of critters) drawCritter(c);
+  for (const f of flights) { // caught friend wiggling happily inside the net
+    const c = { sp: f.sp, x: f.x, y: f.y, t: gt * 2, phase: f.fx, vx: 1, vy: 0, dizzy: false, alpha: 1, spikesOut: false };
+    drawNetRing(f.x, f.y, gt * 8, NET_R + SPECIES[f.sp].r * 0.5);
+    ctx.save(); ctx.globalAlpha = 0.95; drawCritter(c); ctx.restore();
+  }
+  if (net.state === "flying" || net.state === "returning") drawNetRing(net.x, net.y, net.ang, NET_R);
+  drawLauncher(gt);
+  drawParticles();
+  drawHUD();
+}
+function drawGameOver(gt) {
+  drawPlaying(gt);
+  ctx.fillStyle = "rgba(8,10,30,0.72)";
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#fff3c8";
+  ctx.font = "bold 34px 'Comic Sans MS','Chalkboard SE',sans-serif";
+  ctx.fillText("The bed needs a nap! 💤", W / 2, H * 0.36);
+  ctx.font = "22px sans-serif"; ctx.fillStyle = "#dfe8ff";
+  ctx.fillText("You made it to wave " + wave, W / 2, H * 0.46);
+  ctx.fillText("Critters saved: " + score, W / 2, H * 0.52);
+  ctx.font = "18px sans-serif"; ctx.fillStyle = "#aab6ff";
+  ctx.fillText("All the babies are safe in the Pet Pen.", W / 2, H * 0.58);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 24px 'Comic Sans MS','Chalkboard SE',sans-serif";
+  ctx.globalAlpha = 0.6 + 0.4 * Math.sin(gt * 4);
+  ctx.fillText("tap anywhere to play again", W / 2, H * 0.68);
+  ctx.globalAlpha = 1;
+}
+function drawPen(gt) {
+  drawBg(gt);
+  // The cozy starry playpen
+  ctx.save();
+  ctx.strokeStyle = "rgba(170,182,255,0.8)"; ctx.lineWidth = 3;
+  ctx.setLineDash([12, 10]); ctx.lineDashOffset = -gt * 20;
+  rr(ctx, fence.x, fence.y, fence.w, fence.h, 26); ctx.stroke();
+  ctx.setLineDash([]);
+  for (const [cx, cy] of [[fence.x, fence.y], [fence.x + fence.w, fence.y], [fence.x, fence.y + fence.h], [fence.x + fence.w, fence.y + fence.h]]) {
+    ctx.drawImage(glowGold, cx - 26, cy - 26, 52, 52);
+  }
+  ctx.restore();
+  for (const p of penList) {
+    ctx.save();
+    if (p.wig > 0) { ctx.translate(p.x, p.y); ctx.rotate(Math.sin(gt * 30) * 0.25 * p.wig); ctx.translate(-p.x, -p.y); }
+    drawCritter(p);
+    ctx.restore();
+  }
+  drawButton(btnBack, "◀ Back", null, "#3a4390");
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.fillStyle = "#fff3c8"; ctx.font = "bold 26px 'Comic Sans MS','Chalkboard SE',sans-serif";
+  ctx.fillText("PET PEN", W / 2, 20);
+  ctx.font = "15px sans-serif"; ctx.fillStyle = "#aab6ff";
+  ctx.fillText(penTypes.length + " friends live here — tap them to say hi!", W / 2, 52);
+  drawParticles();
+}
+
+/* ---------------- input ---------------- */
+function ptDown(x, y) {
+  audio(); // unlock sound on first touch
+  if (state === "title") {
+    if (inBtn(btnPlay, x, y)) { sPop(); resetGame(); }
+    else if (inBtn(btnPenTitle, x, y)) { sPop(); enterPen(); }
+  } else if (state === "playing") {
+    if (inBtn(btnPen, x, y)) { sPop(); enterPen(); return; }
+    if (net.state === "ready" && y > H * 0.45) { // big thumb target
+      aim.active = true; aim.sx = x; aim.sy = y; aim.cx = x; aim.cy = y;
+    }
+  } else if (state === "pen") {
+    if (inBtn(btnBack, x, y)) { sPop(); state = "title"; return; }
+    for (const p of penList) {
+      if (Math.hypot(x - p.x, y - p.y) < SPECIES[p.sp].r + 14) {
+        p.wig = 1; sBoing();
+        burst(p.x, p.y - SPECIES[p.sp].r, ["#ffe98a", "#aee6ff"], 6, 70, "star");
+        break;
+      }
+    }
+  } else if (state === "gameover") {
+    sPop(); resetGame(); // one-tap restart
+  }
+}
+function ptMove(x, y) { if (aim.active) { aim.cx = x; aim.cy = y; } }
+function ptUp() {
+  if (!aim.active) return;
+  aim.active = false;
+  const len = Math.hypot(aim.sx - aim.cx, aim.sy - aim.cy);
+  if (len < 18) return; // tiny drag = cancel, no accidental shots
+  const v = launchVel();
+  net.state = "flying";
+  net.x = launcher.x; net.y = launcher.y - 18;
+  net.vx = v.vx; net.vy = v.vy - 150; // slight upward boost for a nice arc
+  net.ang = 0; net.t = 0;
+}
+function inBtn(b, x, y) { return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h; }
+
+let pointerId = null;
+canvas.addEventListener("pointerdown", e => {
+  if (pointerId !== null) return;
+  pointerId = e.pointerId;
+  ptDown(e.clientX, e.clientY);
+  e.preventDefault();
+});
+canvas.addEventListener("pointermove", e => {
+  if (e.pointerId === pointerId) { ptMove(e.clientX, e.clientY); e.preventDefault(); }
+});
+function endPtr(e) { if (e.pointerId === pointerId) { pointerId = null; ptUp(); } }
+canvas.addEventListener("pointerup", endPtr);
+canvas.addEventListener("pointercancel", endPtr);
+document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+
+/* ---------------- main loop ---------------- */
+let last = performance.now();
+function frame(now) {
+  const dt = clamp((now - last) / 1000, 0, 1 / 25);
+  last = now;
+  gameTime += dt;
+
+  if (state === "playing") {
+    if (waveState === "spawning") {
+      spawnTimer -= dt;
+      if (spawnTimer <= 0 && queue.length) { spawnCritter(queue.shift()); spawnTimer = spawnGap; }
+      if (!queue.length) waveState = "clearing";
+    } else if (waveState === "clearing") {
+      if (!critters.some(c => c.state !== "flee")) { waveState = "rest"; restT = 1.8; sChime(); floatText(W / 2, H * 0.4, "Wave clear! ⭐", "#aef2c0"); }
+    } else if (waveState === "rest") {
+      restT -= dt;
+      if (restT <= 0) startWave();
+    }
+    updateCritters(dt);
+    updateNet(dt);
+    updateFlights(dt);
+  } else if (state === "pen") {
+    updatePen(dt);
+  }
+  updateParts(dt);
+  updateBg(dt);
+
+  // Render
+  if (state === "title") drawTitle(now / 1000);
+  else if (state === "playing") drawPlaying(now / 1000);
+  else if (state === "pen") drawPen(now / 1000);
+  else if (state === "gameover") drawGameOver(now / 1000);
+
+  requestAnimationFrame(frame);
+}
+
+/* ---------------- boot ---------------- */
+resize();
+initStars();
+requestAnimationFrame(frame);
+
+/* Offline support: register a tiny cache-first service worker when served
+   over HTTPS (e.g. GitHub Pages). Silently skipped on file:// or http. */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
