@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1b2a">
+<title>Tiki's Turbo Rush</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#0d1b2a; touch-action:none; overscroll-behavior:none; }
+  body { position:fixed; inset:0; font-family:'Trebuchet MS',Verdana,sans-serif; user-select:none; -webkit-user-select:none; }
+  #gl { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  /* ---------- HUD ---------- */
+  #hud { position:absolute; top:calc(8px + env(safe-area-inset-top,0px)); left:calc(12px + env(safe-area-inset-left,0px));
+    display:flex; gap:8px; align-items:flex-start; pointer-events:none; z-index:5; color:#fff; font-weight:bold;
+    text-shadow:0 2px 4px rgba(0,0,0,.7); font-size:clamp(12px,2.3vmin,18px); flex-wrap:wrap; max-width:70vw; }
+  .pill { background:rgba(10,20,40,.55); border:2px solid rgba(255,255,255,.35); border-radius:20px; padding:3px 11px; white-space:nowrap; }
+  #powerPill { display:none; border-color:#ffd23e; color:#ffd23e; }
+  #bossbar { position:absolute; top:calc(48px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    width:min(64vw,400px); display:none; z-index:5; text-align:center; }
+  #bossbar .label { color:#ff8fa3; font-weight:bold; font-size:clamp(12px,2.2vmin,16px); text-shadow:0 2px 4px #000; letter-spacing:2px; }
+  #bossbar .bar { height:14px; background:rgba(0,0,0,.55); border:2px solid #fff; border-radius:8px; overflow:hidden; }
+  #bossfill { height:100%; width:100%; background:linear-gradient(90deg,#ff5e7a,#ffd23e); transition:width .25s; }
+  /* ---------- touch controls ---------- */
+  #touch { position:absolute; inset:0; z-index:6; pointer-events:none; }
+  #dpad { position:absolute; left:calc(14px + env(safe-area-inset-left,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    width:190px; height:190px; pointer-events:auto; opacity:.5; }
+  .dp { position:absolute; width:62px; height:62px; background:rgba(255,255,255,.22); border:2px solid rgba(255,255,255,.5);
+    border-radius:14px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:22px; touch-action:none; }
+  .dp.pressed { background:rgba(255,210,62,.75); border-color:#ffd23e; }
+  #dpU { left:64px; top:0; } #dpD { left:64px; bottom:0; } #dpL { left:0; top:64px; } #dpR { right:0; top:64px; }
+  #acts { position:absolute; right:calc(14px + env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    display:flex; gap:12px; align-items:flex-end; pointer-events:auto; opacity:.6; }
+  .abtn { width:82px; height:82px; border-radius:50%; background:rgba(90,160,255,.3); border:3px solid rgba(255,255,255,.55);
+    color:#fff; font-weight:bold; font-size:13px; display:flex; align-items:center; justify-content:center; text-align:center; touch-action:none; }
+  #jumpBtn { width:98px; height:98px; background:rgba(255,120,80,.42); font-size:16px; }
+  .abtn.pressed { transform:scale(.92); background:rgba(255,210,62,.7); }
+  #pauseBtn { position:absolute; top:calc(8px + env(safe-area-inset-top,0px)); right:calc(12px + env(safe-area-inset-right,0px));
+    z-index:7; width:42px; height:42px; border-radius:12px; background:rgba(10,20,40,.55); border:2px solid rgba(255,255,255,.4);
+    color:#fff; font-size:17px; pointer-events:auto; }
+  /* ---------- overlay screens ---------- */
+  .screen { position:absolute; inset:0; z-index:10; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(5,10,25,.85); color:#fff; text-align:center; padding:20px; }
+  .screen.show { display:flex; }
+  #titleCanvas { max-width:min(92vw,640px); border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,.55); }
+  .bigbtn { margin:6px; padding:13px 30px; font-size:19px; font-weight:bold; color:#fff; background:linear-gradient(#ff9540,#e85d1f);
+    border:none; border-radius:14px; box-shadow:0 4px 0 #a03c10; cursor:pointer; font-family:inherit; }
+  .bigbtn:active { transform:translateY(3px); box-shadow:0 1px 0 #a03c10; }
+  .bigbtn.blue { background:linear-gradient(#4a9fd8,#2064a8); box-shadow:0 4px 0 #143d66; }
+  .bigbtn:active.blue { box-shadow:0 1px 0 #143d66; }
+  #lvlGrid { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin:18px 0; max-width:640px; }
+  .lvlbtn { width:104px; padding:12px 6px; border-radius:14px; border:2px solid #ffd23e; background:rgba(30,40,80,.85);
+    color:#fff; font-weight:bold; font-size:14px; cursor:pointer; font-family:inherit; }
+  .lvlbtn small { display:block; font-weight:normal; opacity:.8; font-size:11px; margin-top:4px; }
+  .lvlbtn.locked { opacity:.35; border-color:#888; cursor:default; }
+  #cutscenePanel { max-width:560px; background:rgba(20,30,60,.92); border:2px solid #ffd23e; border-radius:16px; padding:22px; }
+  #csText { font-size:16px; line-height:1.55; margin:12px 0 16px; }
+  #csTitle { color:#ffd23e; letter-spacing:1px; }
+  .screen h2 { letter-spacing:1px; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="hud">
+  <div class="pill" id="hudRings">💍 0</div>
+  <div class="pill" id="hudScore">⭐ 0</div>
+  <div class="pill" id="hudTime">⏱ 0:00</div>
+  <div class="pill" id="hudLives">🐯 ×3</div>
+  <div class="pill" id="powerPill"></div>
+</div>
+<div id="bossbar"><div class="label" id="bossName">BOSS</div><div class="bar"><div id="bossfill"></div></div></div>
+<button id="pauseBtn">⏸</button>
+<div id="touch">
+  <div id="dpad">
+    <div class="dp" id="dpU">▲</div><div class="dp" id="dpD">▼</div>
+    <div class="dp" id="dpL">◀</div><div class="dp" id="dpR">▶</div>
+  </div>
+  <div id="acts">
+    <div class="abtn" id="runBtn">POWER<br>RUN</div>
+    <div class="abtn" id="jumpBtn">JUMP</div>
+  </div>
+</div>
+<div class="screen show" id="titleScreen">
+  <canvas id="titleCanvas" width="640" height="360"></canvas>
+  <div style="margin-top:14px">
+    <button class="bigbtn" id="btnPlay">▶ PLAY</button>
+    <button class="bigbtn blue" id="btnLevels">LEVELS</button>
+  </div>
+  <p style="margin-top:10px;font-size:13px;opacity:.85">Keyboard: Arrows/WASD move · Space jump · Shift power run · ↓ roll</p>
+</div>
+<div class="screen" id="levelSelect">
+  <h2>SELECT LEVEL</h2>
+  <div id="lvlGrid"></div>
+  <button class="bigbtn blue" id="btnBackTitle">◀ BACK</button>
+</div>
+<div class="screen" id="cutsceneScreen">
+  <div id="cutscenePanel">
+    <h3 id="csTitle"></h3>
+    <p id="csText"></p>
+    <button class="bigbtn" id="btnNext">CONTINUE ▶</button>
+  </div>
+</div>
+<div class="screen" id="pauseScreen">
+  <h2>PAUSED</h2>
+  <button class="bigbtn" id="btnResume">▶ RESUME</button>
+  <button class="bigbtn blue" id="btnQuit">QUIT TO TITLE</button>
+</div>
+<div class="screen" id="gameoverScreen">
+  <h2 style="font-size:42px;color:#ff6b6b">GAME OVER</h2>
+  <p id="goScore" style="margin-bottom:14px"></p>
+  <button class="bigbtn" id="btnRetry">RETRY LEVEL</button>
+  <button class="bigbtn blue" id="btnGoTitle">TITLE</button>
+</div>
+<div class="screen" id="victoryScreen">
+  <h2 style="font-size:38px;color:#ffd23e">🌟 TIKI SAVES THE DAY! 🌟</h2>
+  <p id="vicStats" style="margin:10px 0 16px;line-height:1.6"></p>
+  <button class="bigbtn" id="btnVicTitle">BACK TO TITLE</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script>
+"use strict";
+(function () {
+/* ============================================================
+   TIKI'S TURBO RUSH — a 3D Sonic-style platformer for kids.
+   Everything is built from Three.js primitives; all sound is
+   generated with WebAudio. No external art or audio files.
+   ============================================================ */
+
+/* ---------------- error hook (debug aid) ---------------- */
+const ERRORS = [];
+window.addEventListener("error", function (e) { ERRORS.push(String(e.message) + " @" + e.lineno); });
+
+/* ---------------- tiny helpers ---------------- */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const TAU = Math.PI * 2;
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function fmtTime(s) {
+  const m = Math.floor(s / 60), r = Math.floor(s % 60);
+  return m + ":" + (r < 10 ? "0" : "") + r;
+}
+
+/* ---------------- persistence ---------------- */
+function saveNum(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+function loadNum(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : +v; } catch (e) { return d; } }
+
+/* ---------------- audio (all WebAudio, no files) ---------------- */
+const AC = { ctx: null, master: null, musicGain: null, playing: false, step: 0, nextT: 0, level: 0 };
+function audioInit() {
+  if (AC.ctx) { if (AC.ctx.state === "suspended") AC.ctx.resume(); return; }
+  try {
+    AC.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    AC.master = AC.ctx.createGain(); AC.master.gain.value = 0.5; AC.master.connect(AC.ctx.destination);
+    AC.musicGain = AC.ctx.createGain(); AC.musicGain.gain.value = 0.16; AC.musicGain.connect(AC.master);
+  } catch (e) { AC.ctx = null; }
+}
+function beep(f0, f1, dur, type, vol, when) {
+  const c = AC.ctx; if (!c) return;
+  const t = when || c.currentTime;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type || "square";
+  o.frequency.setValueAtTime(Math.max(f0, 1), t);
+  if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), t + dur);
+  g.gain.setValueAtTime(vol || 0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(AC.master);
+  o.start(t); o.stop(t + dur + 0.03);
+}
+function noiseBurst(dur, vol, when) {
+  const c = AC.ctx; if (!c) return;
+  const t = when || c.currentTime;
+  const len = Math.floor(c.sampleRate * dur);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const g = c.createGain(); g.gain.value = vol;
+  src.connect(g); g.connect(AC.master); src.start(t);
+}
+const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+const SFX = {
+  jump()   { beep(300, 760, 0.18, "square", 0.16); },
+  ring()   { if (!AC.ctx) return; const t = AC.ctx.currentTime; beep(988, 988, 0.07, "sine", 0.2, t); beep(1319, 1319, 0.16, "sine", 0.16, t + 0.07); },
+  hit()    { noiseBurst(0.28, 0.3); beep(220, 90, 0.3, "sawtooth", 0.22); },
+  spring() { beep(180, 900, 0.22, "sine", 0.22); },
+  stomp()  { beep(180, 60, 0.14, "square", 0.22); noiseBurst(0.1, 0.15); },
+  power()  { if (!AC.ctx) return; const t = AC.ctx.currentTime; [523, 659, 784, 1047].forEach((f, i) => beep(f, f, 0.12, "triangle", 0.18, t + i * 0.07)); },
+  bossHit(){ beep(120, 60, 0.2, "sawtooth", 0.28); noiseBurst(0.18, 0.22); },
+  bossRoar(){ beep(90, 45, 0.55, "sawtooth", 0.3); noiseBurst(0.4, 0.2); },
+  explode(){ noiseBurst(0.55, 0.4); beep(150, 40, 0.55, "sawtooth", 0.28); },
+  fanfare(){ if (!AC.ctx) return; const t = AC.ctx.currentTime; [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, f, 0.17, "square", 0.18, t + i * 0.13)); },
+  die()    { if (!AC.ctx) return; const t = AC.ctx.currentTime; [420, 320, 230, 140].forEach((f, i) => beep(f, f * 0.75, 0.2, "triangle", 0.22, t + i * 0.14)); }
+};
+/* chiptune loop: 32-step lead + bass, per-level root note & tempo */
+const LEAD =  [0,7,3,7, 10,7,3,7, 0,7,3,7, 12,10,7,3, 0,7,3,7, 10,7,3,7, 5,8,10,12, 10,8,7,3];
+const BASS =  [0,-1,0,-1, -4,-1,-4,-1, 0,-1,0,-1, -4,-1,-4,-1, 2,-1,2,-1, -3,-1,-3,-1, 5,-1,5,-1, 4,-1,4,-1];
+const ROOTS = [57, 55, 53, 51, 49]; // per level
+function musicTick() {
+  const c = AC.ctx; if (!c || !AC.playing) return;
+  const spb = 0.135;
+  while (AC.nextT < c.currentTime + 0.16) {
+    const s = AC.step % 32;
+    const root = ROOTS[AC.level % ROOTS.length];
+    const L = LEAD[s], B = BASS[s];
+    if (L >= 0) beep(midi(root + 12 + L), midi(root + 12 + L), spb * 0.85, "square", 0.06, AC.nextT);
+    if (B >= 0) beep(midi(root + B), midi(root + B), spb * 1.6, "triangle", 0.09, AC.nextT);
+    if (s % 4 === 2) noiseBurst(0.03, 0.03, AC.nextT);
+    AC.nextT += spb; AC.step++;
+  }
+}
+setInterval(musicTick, 60);
+function startMusic(level) { if (!AC.ctx) return; AC.playing = true; AC.level = level; AC.step = 0; AC.nextT = AC.ctx.currentTime + 0.1; }
+function stopMusic() { AC.playing = false; }
+
+/* ---------------- input: keyboard + multi-touch ---------------- */
+const input = { left: false, right: false, up: false, down: false, jump: false, power: false };
+let jumpEdge = false;      // consumed once per press
+let lastKey = "";
+const KEYMAP = {
+  ArrowLeft: "left", a: "left", A: "left",
+  ArrowRight: "right", d: "right", D: "right",
+  ArrowUp: "up", w: "up", W: "up",
+  ArrowDown: "down", s: "down", S: "down",
+  " ": "jump", Shift: "power"
+};
+window.addEventListener("keydown", e => {
+  const k = KEYMAP[e.key] || KEYMAP[lastKey = e.key.length === 1 ? e.key.toLowerCase() : e.key];
+  const name = KEYMAP[e.key];
+  if (name) {
+    e.preventDefault();
+    if (name === "jump" && !input.jump) jumpEdge = true;
+    input[name] = true;
+  }
+  if (e.key === "p" || e.key === "P") togglePause();
+});
+window.addEventListener("keyup", e => {
+  const name = KEYMAP[e.key];
+  if (name) { e.preventDefault(); input[name] = false; }
+});
+/* touch buttons: pointer events, one pointer per button, multi-touch safe */
+function bindBtn(id, name, isJump) {
+  const el = document.getElementById(id);
+  el.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    el.classList.add("pressed");
+    if (isJump && !input.jump) jumpEdge = true;
+    input[name] = true;
+    audioInit();
+  });
+  const off = e => { el.classList.remove("pressed"); input[name] = false; };
+  el.addEventListener("pointerup", off);
+  el.addEventListener("pointercancel", off);
+  el.addEventListener("lostpointercapture", off);
+}
+bindBtn("dpL", "left"); bindBtn("dpR", "right");
+bindBtn("dpU", "up"); bindBtn("dpD", "down");
+bindBtn("jumpBtn", "jump", true); bindBtn("runBtn", "power");
+document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", e => e.preventDefault());
+
+/* ============================================================
+   THREE.JS SCENE — renderer, lights, camera, resize handling
+   ============================================================ */
+const canvas = document.getElementById("gl");
+const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 400);
+let camDist = 15;
+const hemi = new THREE.HemisphereLight(0xffffff, 0x3a4a66, 0.85); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff4e0, 0.95);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -34; sun.shadow.camera.right = 34;
+sun.shadow.camera.top = 34; sun.shadow.camera.bottom = -34;
+sun.shadow.camera.far = 90;
+scene.add(sun); scene.add(sun.target);
+scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  camDist = camera.aspect < 1 ? 19 : 14; // portrait shows a taller slice
+}
+window.addEventListener("resize", onResize);
+window.addEventListener("orientationchange", () => setTimeout(onResize, 120));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", onResize);
+
+/* ---------------- material / mesh helpers ---------------- */
+function mat(c, o) { return new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.7, metalness: 0.05 }, o || {})); }
+function mesh(geo, m, x, y, z) {
+  const me = new THREE.Mesh(geo, m);
+  me.position.set(x || 0, y || 0, z || 0);
+  me.castShadow = true;
+  return me;
+}
+function disposeGroup(g) {
+  g.traverse(o => {
+    if (o.isMesh) { o.geometry.dispose(); if (o.material) o.material.dispose(); }
+  });
+  if (g.parent) g.parent.remove(g);
+}
+
+/* ============================================================
+   TIKI THE TIGER — procedural rig (also reused for Mecha-Tiger)
+   ============================================================ */
+function buildTiger(mecha) {
+  const g = new THREE.Group();
+  const fur = mecha ? mat(0x4a5262, { metalness: 0.8, roughness: 0.32 })
+                    : mat(0xf08a24);
+  const cream = mecha ? mat(0x9aa3b2, { metalness: 0.6, roughness: 0.4 })
+                      : mat(0xfff3e0);
+  const black = mecha ? mat(0x14161c, { metalness: 0.85, roughness: 0.3 })
+                      : mat(0x241505);
+  const pupilM = mecha ? new THREE.MeshBasicMaterial({ color: 0xff2222 })
+                       : mat(0x14203a, { roughness: 0.2 });
+  const innerEar = mecha ? mat(0x8b1a1a) : mat(0xff9e9e);
+  // body: capsule along x (cylinder + two end spheres)
+  const body = new THREE.Group(); g.add(body);
+  const torso = mesh(new THREE.CylinderGeometry(0.52, 0.52, 1.15, 14), fur);
+  torso.rotation.z = Math.PI / 2; body.add(torso);
+  body.add(mesh(new THREE.SphereGeometry(0.52, 14, 10), fur, -0.57, 0, 0));
+  body.add(mesh(new THREE.SphereGeometry(0.52, 14, 10), fur, 0.57, 0, 0));
+  const belly = mesh(new THREE.SphereGeometry(0.44, 12, 8), cream, 0.05, -0.2, 0);
+  belly.scale.set(1.1, 0.72, 0.82); body.add(belly);
+  // black stripe bands wrapped around the body
+  [-0.38, 0, 0.38].forEach(x => {
+    const t = mesh(new THREE.TorusGeometry(0.53, 0.075, 8, 18), black, x, 0, 0);
+    t.rotation.y = Math.PI / 2; body.add(t);
+  });
+  // head
+  const head = new THREE.Group(); head.position.set(1.0, 0.5, 0); g.add(head);
+  head.add(mesh(new THREE.SphereGeometry(0.48, 14, 12), fur, 0, 0, 0));
+  const muzzle = mesh(new THREE.SphereGeometry(0.3, 12, 10), cream, 0.26, -0.13, 0);
+  muzzle.scale.set(0.85, 0.68, 1); head.add(muzzle);
+  head.add(mesh(new THREE.SphereGeometry(0.09, 8, 8), black, 0.5, -0.06, 0)); // nose
+  [-1, 1].forEach(s => {
+    head.add(mesh(new THREE.SphereGeometry(0.15, 10, 10), mat(0xffffff, { roughness: 0.15 }), 0.3, 0.16, s * 0.22));
+    head.add(mesh(new THREE.SphereGeometry(0.07, 8, 8), pupilM, 0.42, 0.16, s * 0.22));
+    head.add(mesh(new THREE.SphereGeometry(0.17, 10, 10), fur, -0.06, 0.44, s * 0.3));
+    head.add(mesh(new THREE.SphereGeometry(0.09, 8, 8), innerEar, -0.02, 0.45, s * 0.3));
+  });
+  if (mecha) { // antenna + shoulder spikes for the dark mirror
+    head.add(mesh(new THREE.ConeGeometry(0.05, 0.5, 6), black, -0.1, 0.65, 0));
+    [-1, 1].forEach(s => {
+      const sp = mesh(new THREE.ConeGeometry(0.12, 0.4, 6), black, -0.2, 0.5, s * 0.42);
+      sp.rotation.x = s * 0.9; g.add(sp);
+    });
+  }
+  // legs (pivot groups at the hips so they swing while running)
+  const legs = [];
+  [[0.52, 0.3], [0.52, -0.3], [-0.52, 0.3], [-0.52, -0.3]].forEach(p => {
+    const leg = new THREE.Group(); leg.position.set(p[0], -0.38, p[1]); g.add(leg);
+    leg.add(mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.72, 10), fur, 0, -0.34, 0));
+    leg.add(mesh(new THREE.SphereGeometry(0.17, 10, 10), fur, 0, -0.68, 0));
+    legs.push(leg);
+  });
+  // tail
+  const tail = new THREE.Group(); tail.position.set(-1.0, 0.32, 0); g.add(tail);
+  let tx = -0.24;
+  for (let i = 0; i < 3; i++) {
+    tail.add(mesh(new THREE.SphereGeometry(0.14 - i * 0.03, 8, 8), fur, tx, 0.09 * i, 0));
+    tx -= 0.24;
+  }
+  tail.add(mesh(new THREE.SphereGeometry(0.09, 8, 8), cream, tx, 0.32, 0));
+  const aura = mesh(new THREE.SphereGeometry(1.9, 14, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffd23e, transparent: true, opacity: 0 }));
+  aura.position.y = 0.6; aura.visible = false; g.add(aura);
+  const jet = new THREE.Group(); jet.position.set(-0.35, 0.4, 0); jet.visible = false; g.add(jet);
+  [-0.25, 0.25].forEach(z => {
+    jet.add(mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.6, 8), mat(0x8899aa, { metalness: 0.7, roughness: 0.3 }), 0, 0, z));
+  });
+  return { group: g, body: body, head: head, legs: legs, tail: tail, aura: aura, jet: jet, fur: fur, mats: [fur, cream, black] };
+}
+function animTiger(r, t, run01, spinning, dt) {
+  const swing = Math.sin(t * 15) * (0.15 + run01 * 0.85);
+  r.legs[0].rotation.x = swing; r.legs[3].rotation.x = swing;
+  r.legs[1].rotation.x = -swing; r.legs[2].rotation.x = -swing;
+  r.body.position.y = Math.abs(Math.sin(t * 15)) * 0.12 * run01;
+  r.body.rotation.z = -0.06 * run01;
+  r.tail.rotation.y = Math.sin(t * 6) * (0.2 + run01 * 0.5);
+  r.tail.rotation.x = Math.sin(t * 4) * 0.25;
+  r.head.rotation.x = Math.sin(t * 2.2) * 0.06 * (1 - run01); // idle breathing head-bob
+  if (spinning) r.group.rotation.x -= 10 * dt * (1 + run01);
+  else r.group.rotation.x = lerp(r.group.rotation.x % TAU, 0, 0.2);
+}
+function flashTiger(r, on) {
+  r.mats.forEach(m => { m.emissive = m.emissive || new THREE.Color(0); m.emissive.setHex(on ? 0xff2222 : 0x000000); });
+}
+
+/* ============================================================
+   WORLD OBJECT BUILDERS
+   ============================================================ */
+const THEMES = [
+  { name: "Jungle Jam",  sky: 0x7ec8e3, fog: 0xa8d8b0, grass1: 0x58b048, grass2: 0x3f8f3a, dirt: 0x8a5a33, accent: 0x2e7d32, deco: "palm" },
+  { name: "Deep Reef",   sky: 0x0d5c8f, fog: 0x1a6ea8, grass1: 0x2e9e9e, grass2: 0x22797d, dirt: 0x5a6a8a, accent: 0x66e0e0, deco: "coral" },
+  { name: "Haunted Hills", sky: 0x2a1a4a, fog: 0x3a2a5a, grass1: 0x5a4a8a, grass2: 0x463a6e, dirt: 0x3a3040, accent: 0xff8a3e, deco: "deadtree" },
+  { name: "Volcano Vault", sky: 0x3a1414, fog: 0x5a2020, grass1: 0x8a4a2a, grass2: 0x6e3a20, dirt: 0x4a2418, accent: 0xff5e2a, deco: "lava" },
+  { name: "Neon City",   sky: 0x101028, fog: 0x2a2a55, grass1: 0x444a66, grass2: 0x333852, dirt: 0x22243a, accent: 0x4affd8, deco: "tower" }
+];
+function makeGround(x0, x1, topY, th) {
+  const w = x1 - x0, h = 10, d = 7;
+  const g = new THREE.Group();
+  const base = mesh(new THREE.BoxGeometry(w, h, d), mat(th.dirt), (x0 + x1) / 2, topY - h / 2, 0);
+  base.receiveShadow = true; g.add(base);
+  const tile = 2;
+  for (let x = x0; x < x1 - 0.01; x += tile) {
+    for (let z = -d / 2 + 1; z < d / 2 - 0.9; z += tile) {
+      const c = ((Math.round(x / tile) + Math.round(z / tile)) % 2 === 0) ? th.grass1 : th.grass2;
+      g.add(mesh(new THREE.BoxGeometry(tile, 0.3, tile), mat(c), x + tile / 2, topY - 0.14, z));
+    }
+  }
+  scene.add(g);
+  colliders.push({ x0: x0, x1: x1, top: topY, bottom: topY - h, mesh: g });
+  return g;
+}
+function makePlatform(x, y, w, th) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(w, 0.9, 4), mat(th.dirt), 0, -0.45, 0));
+  const tile = 2;
+  for (let px = -w / 2; px < w / 2 - 0.01; px += tile) {
+    for (let z = -1; z <= 1; z += 2) {
+      const c = ((Math.round(px / tile) + (z > 0 ? 0 : 1)) % 2 === 0) ? th.grass1 : th.grass2;
+      g.add(mesh(new THREE.BoxGeometry(tile, 0.28, 2), mat(c), px + tile / 2, 0.14, z));
+    }
+  }
+  g.position.set(x, y, 0); scene.add(g);
+  return { x0: x - w / 2, x1: x + w / 2, top: y, bottom: y - 0.9, mesh: g, mover: false };
+}
+function makeSpring(x, y) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(0.9, 1.05, 0.6, 12), mat(0xd42a2a), 0, 0.3, 0));
+  const top = mesh(new THREE.CylinderGeometry(1.0, 0.9, 0.25, 12), mat(0xffd23e), 0, 0.72, 0);
+  g.add(top); g.position.set(x, y, 0); scene.add(g);
+  springs.push({ x: x, y: y, top: top, t: 0 });
+}
+function makeBoost(x, y, dir) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(3.4, 0.24, 3), mat(0x222a44, { emissive: 0x1144aa, emissiveIntensity: 0.5 }), 0, 0.12, 0));
+  for (let i = 0; i < 2; i++) {
+    const ch = mesh(new THREE.ConeGeometry(0.5, 0.9, 3), mat(0x4affd8, { emissive: 0x118877, emissiveIntensity: 0.8 }), -0.8 + i * 1.2, 0.75, 0);
+    ch.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+    g.add(ch);
+  }
+  g.position.set(x, y, 0); scene.add(g);
+  boosts.push({ x: x, y: y, dir: dir, g: g, t: 0 });
+}
+function makeSpikeBall(x, y, r, swingAmp) {
+  const g = new THREE.Group();
+  const s = mesh(new THREE.SphereGeometry(r, 12, 10), mat(0x2a2a34, { metalness: 0.6, roughness: 0.4 }));
+  g.add(s);
+  for (let i = 0; i < 8; i++) {
+    const c = mesh(new THREE.ConeGeometry(0.16 * (r / 1.2), 0.55 * (r / 1.2), 6), mat(0xd8d8e8, { metalness: 0.8, roughness: 0.25 }));
+    const a = i / 8 * TAU;
+    c.position.set(Math.cos(a) * r * 1.05, Math.sin(a) * r * 1.05, 0);
+    c.rotation.z = a - Math.PI / 2 + Math.PI; g.add(c);
+  }
+  g.position.set(x, y, 0); scene.add(g);
+  hazards.push({ type: "spike", x: x, y: y, r: r + 0.35, g: g, spin: 2.2 + Math.random(), amp: swingAmp || 0, baseY: y, ph: Math.random() * TAU });
+}
+function makeWalker(x, y) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(1.5, 1.0, 1.2), mat(0x99a2b8, { metalness: 0.55, roughness: 0.4 }), 0, 0.9, 0));
+  g.add(mesh(new THREE.BoxGeometry(0.8, 0.5, 0.8), mat(0x5a6478, { metalness: 0.6 }), 0, 1.6, 0));
+  const eye = mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff4444 }), 0.5, 1.65, 0);
+  g.add(eye);
+  const wheel = mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.5, 10), mat(0x22262e), 0, 0.42, 0);
+  wheel.rotation.x = Math.PI / 2; g.add(wheel);
+  g.position.set(x, y, 0); scene.add(g);
+  enemies.push({ type: "walker", x: x, y: y, r: 1.15, g: g, wheel: wheel, x0: x - 4.5, x1: x + 4.5, dir: 1, spd: 55, dead: false });
+}
+function makeCrusher(x, topY, bottomY) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(2.6, 2.4, 2.6), mat(0x6a5a3a), 0, -1.2, 0));
+  g.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 3.2, 8), mat(0x3a3a44, { metalness: 0.7 }), 0, 1.2, 0));
+  for (let i = -1; i <= 1; i++) g.add(mesh(new THREE.ConeGeometry(0.16, 0.5, 5), mat(0xc8c8d8), i * 0.8, -2.5, 0));
+  g.position.set(x, topY, 0); scene.add(g);
+  hazards.push({ type: "crusher", x: x, g: g, topY: topY, bottomY: bottomY, t: Math.random() * 3, phase: 0 });
+}
+function makeMover(x, y, w, ax, range, spd, th) {
+  const c = makePlatform(x, y, w, th);
+  c.mover = { ax: ax, base: ax === "x" ? x : y, range: range, spd: spd, ph: Math.random() * TAU, dx: 0, dy: 0 };
+  movers.push(c); colliders.push(c);
+  return c;
+}
+function makeRing(x, y) {
+  const r = mesh(new THREE.TorusGeometry(0.5, 0.13, 8, 20),
+    new THREE.MeshStandardMaterial({ color: 0xffd23e, emissive: 0x996500, roughness: 0.3, metalness: 0.6 }), x, y, 0);
+  r.castShadow = false; scene.add(r);
+  rings.push({ x: x, y: y, mesh: r, taken: false, scatter: false, vx: 0, vy: 0, life: 0 });
+}
+const PICKDEFS = {
+  speed: { col: 0xffd23e, label: "SUPER SPEED" },
+  jet: { col: 0x8fd0ff, label: "JETPACK" },
+  star: { col: 0xff5e7a, label: "INVINCIBILITY" }
+};
+function makePickup(kind, x, y) {
+  const d = PICKDEFS[kind];
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: d.col, emissive: d.col, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.4 });
+  if (kind === "speed") { const c = mesh(new THREE.ConeGeometry(0.45, 1.1, 4), m); c.rotation.z = -Math.PI / 2; g.add(c); }
+  else if (kind === "jet") {
+    g.add(mesh(new THREE.BoxGeometry(0.7, 0.9, 0.5), m));
+    [-0.25, 0.25].forEach(z => g.add(mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.5, 8), m, 0, -0.6, z)));
+  } else {
+    const st = mesh(new THREE.OctahedronGeometry(0.7), m); g.add(st);
+    const st2 = mesh(new THREE.OctahedronGeometry(0.45), m); st2.rotation.y = Math.PI / 4; g.add(st2);
+  }
+  g.position.set(x, y, 0); scene.add(g);
+  pickups.push({ kind: kind, x: x, y: y, g: g, taken: false });
+}
+function makeDeco(kind, x, y, th, rng) {
+  const g = new THREE.Group();
+  if (kind === "palm") {
+    g.add(mesh(new THREE.CylinderGeometry(0.22, 0.3, 3.4, 8), mat(0x8a5a33), 0, 1.7, rng() * 2 - 1));
+    for (let i = 0; i < 5; i++) {
+      const leaf = mesh(new THREE.BoxGeometry(2.2, 0.12, 0.7), mat(th.accent), 0, 3.5, 0);
+      leaf.rotation.y = i / 5 * TAU; leaf.rotation.z = -0.45;
+      leaf.position.x = Math.cos(i / 5 * TAU) * 0.9; leaf.position.z = Math.sin(i / 5 * TAU) * 0.9;
+      g.add(leaf);
+    }
+  } else if (kind === "coral") {
+    const c = mat(th.accent, { emissive: th.accent, emissiveIntensity: 0.25 });
+    for (let i = 0; i < 4; i++) {
+      const b = mesh(new THREE.CylinderGeometry(0.12, 0.2, 1.4 + rng() * 1.2, 6), c, rng() * 1.6 - 0.8, 0.8, rng() * 1.6 - 0.8);
+      b.rotation.z = rng() * 0.5 - 0.25; g.add(b);
+    }
+  } else if (kind === "deadtree") {
+    g.add(mesh(new THREE.CylinderGeometry(0.18, 0.3, 3, 6), mat(0x2a2030), 0, 1.5, 0));
+    [-0.6, 0.5].forEach((dx, i) => {
+      const br = mesh(new THREE.BoxGeometry(1.6, 0.14, 0.3), mat(0x2a2030), dx, 2.4 + i * 0.5, 0);
+      br.rotation.z = dx > 0 ? -0.6 : 0.6; g.add(br);
+    });
+  } else if (kind === "lava") {
+    const pool = mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.2, 12), new THREE.MeshBasicMaterial({ color: 0xff6a1a }), 0, 0.12, 0);
+    g.add(pool);
+    g.userData.glow = true;
+  } else { // tower
+    const h = 6 + rng() * 8;
+    g.add(mesh(new THREE.BoxGeometry(2.4, h, 2.4), mat(0x2a2a44, { emissive: 0x1a3a55, emissiveIntensity: 0.4 }), 0, h / 2, rng() * 3 - 1.5));
+    g.add(mesh(new THREE.BoxGeometry(2.6, 0.4, 2.6), mat(0x4affd8, { emissive: 0x188a6e, emissiveIntensity: 0.7 }), 0, h + 0.2, 0));
+  }
+  g.position.set(x, y, -(2.5 + rng() * 2.5)); scene.add(g);
+  return g;
+}
+/* particle pool (shared) */
+const parts = [];
+function puff(x, y, col, n, spd, size) {
+  for (let i = 0; i < n; i++) {
+    if (parts.length > 90) break;
+    const p = mesh(new THREE.SphereGeometry(size || 0.16, 6, 6), new THREE.MeshBasicMaterial({ color: col, transparent: true }), x, y, 0);
+    p.userData = {
+      vx: (Math.random() - 0.5) * spd, vy: Math.random() * spd * 0.8,
+      life: 0.5 + Math.random() * 0.4, t: 0
+    };
+    scene.add(p); parts.push(p);
+  }
+}
+function updateParts(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i], u = p.userData;
+    u.t += dt; u.vy -= 500 * dt;
+    p.position.x += u.vx * dt; p.position.y += u.vy * dt;
+    p.material.opacity = Math.max(0, 1 - u.t / u.life);
+    if (u.t >= u.life) { scene.remove(p); p.geometry.dispose(); p.material.dispose(); parts.splice(i, 1); }
+  }
+}
+
+/* ============================================================
+   WORLD STATE
+   ============================================================ */
+const colliders = [], hazards = [], enemies = [], rings = [], springs = [],
+      boosts = [], movers = [], pickups = [], bossShots = [];
+let boss = null;
+const GRAV = 2600, ACC = 1500, MAXSPD = 430, JUMPV = 980;
+const player = {
+  x: 4, y: 3, vx: 0, vy: 0, w: 1.3, h: 2.6,
+  onGround: false, facing: 1, spin: false, rolling: false,
+  iFrames: 0, dead: false, groundC: null,
+  power: null, powerT: 0, jetFuel: 0, trailT: 0
+};
+let rig = null; // tiger rig, built at boot
+const G = {
+  state: "title", level: 0, lives: 3, rings: 0, score: 0, time: 0,
+  checkpointX: 4, bossDefeated: 0, camX: 4, camY: 4, introT: 0
+};
+
+/* ============================================================
+   LEVEL DEFINITIONS + GENERATOR
+   ============================================================ */
+const LEVELS = [
+  { name: "Jungle Jam",     boss: "bat",     len: 200, seed: 11 },
+  { name: "Deep Reef",      boss: "kraken",  len: 210, seed: 22 },
+  { name: "Haunted Hills",  boss: "pumpkin", len: 220, seed: 33 },
+  { name: "Graveyard Shift",boss: "ghost",   len: 230, seed: 44 },
+  { name: "Neon Rooftops",  boss: "mecha",   len: 240, seed: 55 }
+];
+const CUTSCENES = [
+  { t: "ROBO-BAT GROUNDED!", x: "Robo-Bat short-circuits mid-swoop — \u201cScreeee\u2026 no fair!\u201d it buzzes, tumbling into the canopy. Tiki spots a trail of shimmering bubbles leading out to sea. Something enormous stirs beneath the waves\u2026" },
+  { t: "KRAKEN CALMED!", x: "The Kraken gurgles a grumpy goodbye and sinks back into the reef, blowing one last grumpy bubble. \u201cTentacles down, big guy,\u201d Tiki grins. Ahead, cold fog rolls over dark hills \u2014 and jack-o-lanterns flicker in the mist\u2026" },
+  { t: "PUMPKIN SMASHED!", x: "The Jack-O-Lantern deflates with a sad little hiss. \u201cYou squashed my best pumpkins,\u201d it whimpers. Tiki pats it anyway \u2014 then a ghostly giggle echoes across the graveyard. Brrr! Time to get spooky." },
+  { t: "GHOST BUSTED!", x: "The Ghost fades out whispering \u201cbooooo-ring\u2026\u201d Tiki shivers and presses on. The city skyline crackles with red lightning \u2014 and a dark metal silhouette that looks a LOT like Tiki flexes glowing claws. It\u2019s\u2026 MECHA-TIGER!" },
+  { t: "MECHA-TIGER DEFEATED!", x: "Mecha-Tiger\u2019s red eyes blink twice\u2026 then glow friendly blue. \u201cFascinating,\u201d it beeps. \u201cFriendship mode: activated.\u201d Tiki high-fives his metal twin as fireworks light up the skyline. TURBO RUSH COMPLETE!" }
+];
+function ringRow(x, y, n, gapY) {
+  for (let i = 0; i < n; i++) makeRing(x + i * 1.7, y + (gapY ? Math.sin(i / (n - 1) * Math.PI) * gapY : 0));
+}
+function buildLevel(i) {
+  clearWorld();
+  const def = LEVELS[i], th = THEMES[i], rng = mulberry32(def.seed);
+  scene.background = new THREE.Color(th.sky);
+  scene.fog = new THREE.Fog(th.fog, 34, 100);
+  makeGround(0, 26, 0, th);
+  let x = 26, sincePickup = 0, walkerFlip = false;
+  const segStarts = [4];
+  while (x < def.len - 20) {
+    const r = rng(), top = rng() < 0.3 ? 2.5 : 0;
+    if (r < 0.20) { // pit with ring arc
+      const gap = 5 + rng() * 3;
+      ringRow(x - 1, 3.2, 5, 1.6);
+      if (rng() < 0.5) makeSpring(x - 2.5, 0);
+      x += gap; segStarts.push(x);
+      makeGround(x, x + 12 + rng() * 8, 0, th); x += 12 + rng() * 8;
+    } else if (r < 0.34) { // wide gap + moving platform
+      const gap = 10 + rng() * 3;
+      ringRow(x - 1, 2.6, 4, 1.2);
+      makeMover(x + gap / 2, 1.6 + rng(), 4, "x", 3, 1.2 + rng(), th);
+      x += gap; segStarts.push(x);
+      makeGround(x, x + 14, 0, th);
+      if (i >= 1 && rng() < 0.5) makeBoost(x + 4, 0, 1);
+      x += 14;
+    } else if (r < 0.48) { // raised hill
+      makeGround(x, x + 16, top === 0 ? 0 : 2.5, th);
+      if (top > 0) { makeGround(x - 5, x, 1.2, th); ringRow(x + 4, 4.2, 4, 0); }
+      if (rng() < 0.6) makeWalker(x + 8, top);
+      x += 16;
+    } else { // normal stretch with hazards & goodies
+      const w = 12 + rng() * 8;
+      makeGround(x, x + w, 0, th);
+      if (rng() < 0.55) makeWalker(x + 4 + rng() * (w - 8), 0);
+      if (i >= 1 && rng() < 0.4) makeSpikeBall(x + w / 2, 2.4, 1.1, 0);
+      if (i >= 2 && rng() < 0.35) makeCrusher(x + 3 + rng() * (w - 6), 7.5, 1.6);
+      if (rng() < 0.5) ringRow(x + 2, 1.6, 4 + Math.floor(rng() * 3), 0);
+      if (rng() < 0.4) makeDeco(th.deco, x + 2 + rng() * (w - 4), 0, th, rng);
+      x += w;
+    }
+    sincePickup += 14;
+    if (sincePickup > 42) {
+      const kinds = ["speed", "jet", "star"];
+      makePickup(kinds[(i + Math.floor(x / 42)) % 3], x - 6, 3);
+      sincePickup = 0;
+    }
+  }
+  // boss arena
+  makeGround(def.len, def.len + 46, 0, th);
+  for (let d = 0; d < 4; d++) makeDeco(th.deco, def.len + 4 + d * 10, 0, th, rng);
+  // checkpoint: nearest segment start to mid-level
+  let best = segStarts[0];
+  segStarts.forEach(s => { if (Math.abs(s - def.len / 2) < Math.abs(best - def.len / 2)) best = s; });
+  G.checkpointX = best;
+  onResize();
+}
+function clearWorld() {
+  [colliders, enemies, hazards, springs, boosts, movers, pickups, bossShots].forEach(list => {
+    list.forEach(o => { if (o.mesh || o.g) disposeGroup(o.mesh || o.g); });
+    list.length = 0;
+  });
+  rings.forEach(r => disposeGroup(r.mesh)); rings.length = 0;
+  parts.forEach(p => { scene.remove(p); }); parts.length = 0;
+  if (boss) { disposeGroup(boss.g); boss = null; }
+  document.getElementById("bossbar").style.display = "none";
+}
+/* ============================================================
+   PLAYER PHYSICS
+   ============================================================ */
+function speedMult() {
+  let m = input.power ? 1.5 : 1;
+  if (player.power === "speed") m *= 1.6;
+  return m;
+}
+function updatePlayer(dt) {
+  const p = player;
+  const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  const acc = ACC * (p.onGround ? 1 : 0.55);
+  if (dir !== 0) {
+    p.vx += dir * acc * dt;
+    p.facing = dir;
+  } else if (p.onGround) {
+    const f = 1500 * dt;
+    p.vx = Math.abs(p.vx) < f ? 0 : p.vx - Math.sign(p.vx) * f;
+  } else p.vx *= 1 - 0.4 * dt;
+  p.vx = clamp(p.vx, -MAXSPD * speedMult(), MAXSPD * speedMult());
+
+  p.rolling = p.onGround && input.down && Math.abs(p.vx) > 60;
+
+  if (jumpEdge) {
+    jumpEdge = false;
+    if (p.onGround) { p.vy = JUMPV; p.onGround = false; p.spin = true; SFX.jump(); puff(p.x, p.y, 0xcccccc, 5, 120); }
+  }
+  if (!input.jump && p.vy > 320) p.vy = 320; // variable jump height
+  // jetpack hover
+  if (p.power === "jet" && input.jump && p.jetFuel > 0 && !p.onGround) {
+    p.vy = Math.min(p.vy + 4200 * dt, 430); p.jetFuel -= dt;
+    if (Math.random() < 0.7) puff(p.x - p.facing * 0.5, p.y - 0.8, Math.random() < 0.5 ? 0xff7a1a : 0xffd23e, 1, 90, 0.14);
+  }
+  p.vy -= GRAV * dt;
+  const prevY = p.y, prevFeet = p.y - p.h / 2;
+  p.x += p.vx * dt; p.y += p.vy * dt;
+  if (p.x < 2) { p.x = 2; p.vx = 0; }
+  const feet = p.y - p.h / 2, halfW = p.w / 2;
+  // landing on platform tops
+  p.onGround = false; p.groundC = null;
+  if (p.vy <= 0) {
+    for (const c of colliders) {
+      if (p.x + halfW > c.x0 && p.x - halfW < c.x1 &&
+          prevFeet >= c.top - 0.35 && feet <= c.top) {
+        p.y = c.top + p.h / 2; p.vy = 0; p.onGround = true; p.spin = false; p.groundC = c;
+      }
+    }
+  }
+  // moving platform carry
+  if (p.groundC && p.groundC.mover) { p.x += p.groundC.mover.dx; p.y += p.groundC.mover.dy; }
+  // boost pads
+  for (const b of boosts) {
+    if (Math.abs(p.x - b.x) < 2 && Math.abs(feet - b.y) < 1.2) {
+      p.vx = b.dir * 760; p.vy = Math.max(p.vy, 260); b.t = 0.4; SFX.spring();
+      puff(b.x, b.y + 1, 0x4affd8, 6, 200);
+    }
+  }
+  // springs
+  for (const s of springs) {
+    if (Math.abs(p.x - s.x) < 1.2 && feet < s.y + 1.4 && feet > s.y - 0.4 && p.vy <= 0) {
+      p.vy = 1350; p.onGround = false; p.spin = false; s.t = 0.35; SFX.spring();
+    }
+  }
+  // rings
+  for (const r of rings) {
+    if (r.taken) continue;
+    if (Math.hypot(p.x - r.x, p.y - r.y) < 1.45) {
+      r.taken = true; disposeGroup(r.mesh);
+      G.rings++; G.score += 10; SFX.ring();
+      puff(r.x, r.y, 0xffd23e, 3, 60, 0.1);
+    }
+  }
+  // pickups
+  for (const pk of pickups) {
+    if (pk.taken) continue;
+    if (Math.hypot(p.x - pk.x, p.y - pk.y) < 1.6) {
+      pk.taken = true; disposeGroup(pk.g);
+      givePower(pk.kind); SFX.power(); G.score += 50;
+    }
+  }
+  // hazards + enemies
+  if (p.iFrames > 0) p.iFrames -= dt;
+  const invincible = p.power === "star";
+  const spinning = p.spin || p.rolling;
+  for (const h of hazards) {
+    if (h.type === "spike") {
+      if (Math.hypot(p.x - h.x, (p.y) - h.y) < h.r + 0.9) {
+        if (!invincible) hitPlayer();
+      }
+    } else if (h.type === "crusher") {
+      if (Math.abs(p.x - h.x) < 1.7 && p.y + p.h / 2 > h.g.position.y - 2.8 && p.y - p.h / 2 < h.g.position.y + 0.2) {
+        if (!invincible) hitPlayer();
+      }
+    }
+  }
+  for (const e of enemies) {
+    if (e.dead) continue;
+    if (Math.hypot(p.x - e.x, p.y - (e.y + 1)) < e.r + 1) {
+      if (invincible || (spinning && !p.onGround)) {
+        e.dead = true; disposeGroup(e.g); SFX.stomp();
+        G.score += 100; puff(e.x, e.y + 1, 0xffaa44, 10, 220);
+        p.vy = 700;
+      } else hitPlayer();
+    }
+  }
+  // boss shots
+  for (let i = bossShots.length - 1; i >= 0; i--) {
+    const s = bossShots[i];
+    if (Math.hypot(p.x - s.x, p.y - s.y) < s.r + 0.9) {
+      if (!invincible) hitPlayer();
+      scene.remove(s.g); bossShots.splice(i, 1);
+    }
+  }
+  // fell into a pit
+  if (p.y < -16) die();
+  // boss trigger
+  const def = LEVELS[G.level];
+  if (G.state === "playing" && p.x > def.len + 8 && !boss) startBossIntro(def);
+  if (boss) p.x = clamp(p.x, def.len + 2.5, def.len + 43);
+  // rig pose
+  rig.group.position.set(p.x, p.y - 0.2, 0);
+  rig.group.rotation.y = p.facing < 0 ? Math.PI : 0;
+  const run01 = clamp(Math.abs(p.vx) / MAXSPD, 0, 1);
+  animTiger(rig, G.time, run01, p.spin || p.rolling, dt);
+  flashTiger(rig, p.iFrames > 0 && Math.floor(p.iFrames * 12) % 2 === 0);
+  // powers
+  if (p.power) {
+    p.powerT -= dt;
+    if (p.power === "star") {
+      rig.aura.visible = true;
+      rig.aura.material.opacity = 0.3;
+      rig.aura.material.color.setHSL((G.time * 1.5) % 1, 0.9, 0.6);
+      rig.aura.scale.setScalar(1 + Math.sin(G.time * 10) * 0.06);
+    } else if (p.power === "speed") {
+      p.trailT -= dt;
+      if (p.trailT <= 0) { puff(p.x - p.facing * 1.2, p.y, 0xffd23e, 1, 40, 0.2); p.trailT = 0.05; }
+    }
+    if (p.powerT <= 0) endPower();
+  } else rig.aura.visible = false;
+  rig.jet.visible = p.power === "jet";
+}
+function givePower(kind) {
+  player.power = kind;
+  player.powerT = kind === "star" ? 20 : kind === "speed" ? 8 : 6;
+  player.jetFuel = 6;
+}
+function endPower() { player.power = null; rig.aura.visible = false; rig.jet.visible = false; }
+function hitPlayer() {
+  const p = player;
+  if (p.iFrames > 0 || p.dead) return;
+  if (G.rings > 0) {
+    const n = Math.min(G.rings, 12);
+    for (let i = 0; i < n; i++) {
+      const r = { x: p.x, y: p.y, mesh: mesh(new THREE.TorusGeometry(0.5, 0.13, 8, 20), new THREE.MeshStandardMaterial({ color: 0xffd23e, emissive: 0x996500, roughness: 0.3, metalness: 0.6 }), p.x, p.y, 0), taken: false, scatter: true, vx: (Math.random() - 0.5) * 460, vy: 300 + Math.random() * 320, life: 3.5 };
+      r.mesh.castShadow = false; scene.add(r.mesh); rings.push(r);
+    }
+    G.rings = 0; SFX.hit(); p.iFrames = 1.7;
+    p.vy = 520; p.vx = -p.facing * 260;
+  } else die();
+}
+function die() {
+  const p = player;
+  if (p.dead) return;
+  p.dead = true; G.lives--; SFX.die(); endPower();
+  puff(p.x, p.y, 0xff8844, 14, 300);
+  setTimeout(() => {
+    if (G.lives <= 0) {
+      G.state = "gameover";
+      document.getElementById("goScore").textContent = "Score: " + G.score + " · Rings: " + G.rings;
+      showScreen("gameoverScreen");
+    } else {
+      G.rings = 0;
+      p.x = G.checkpointX; p.y = 3; p.vx = 0; p.vy = 0; p.dead = false; p.iFrames = 2;
+      if (boss) { disposeGroup(boss.g); boss = null; G.state = "playing"; document.getElementById("bossbar").style.display = "none"; }
+    }
+  }, 900);
+}
+
+/* ============================================================
+   WORLD OBJECT UPDATES
+   ============================================================ */
+function updateWorld(dt) {
+  // patrolling walker bots
+  for (const e of enemies) {
+    if (e.dead) continue;
+    e.x += e.dir * e.spd * dt;
+    if (e.x < e.x0) { e.x = e.x0; e.dir = 1; }
+    if (e.x > e.x1) { e.x = e.x1; e.dir = -1; }
+    e.g.position.x = e.x;
+    e.wheel.rotation.z -= e.dir * 4 * dt;
+  }
+  // hazards
+  for (const h of hazards) {
+    if (h.type === "spike") {
+      h.g.rotation.y += h.spin * dt;
+      if (h.amp) h.g.position.y = h.baseY + Math.sin(G.time * 1.6 + h.ph) * h.amp;
+      h.y = h.g.position.y;
+    } else if (h.type === "crusher") {
+      h.t += dt;
+      const c = h.t % 3.4;
+      let y = h.topY;
+      if (c < 0.9) y = lerp(h.topY, h.bottomY, c / 0.9);
+      else if (c < 1.7) y = h.bottomY;
+      else if (c < 2.3) y = lerp(h.bottomY, h.topY, (c - 1.7) / 0.6);
+      h.g.position.y = y;
+    }
+  }
+  // moving platforms carry their collider
+  for (const m of movers) {
+    const mv = m.mover;
+    const v = mv.base + Math.sin(G.time * mv.spd + mv.ph) * mv.range;
+    if (mv.ax === "x") {
+      mv.dx = v - (m.x0 + m.x1) / 2;
+      mv.dy = 0;
+      m.x0 += mv.dx; m.x1 += mv.dx;
+    } else {
+      const oldTop = m.top;
+      mv.dy = v - oldTop; mv.dx = 0;
+      m.top = v; m.bottom = v - (m.bottom === undefined ? 0.9 : (m.bottom === oldTop ? 0.9 : m.bottom)) || v - 0.9;
+      m.bottom = v - 0.9;
+    }
+    m.mesh.position[mv.ax] = mv.ax === "x" ? (m.x0 + m.x1) / 2 : v;
+  }
+  // rings: spin, scatter physics
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i];
+    if (r.taken) { rings.splice(i, 1); continue; }
+    r.mesh.rotation.y += 3 * dt;
+    if (r.scatter) {
+      r.vy -= 1600 * dt;
+      r.x += r.vx * dt; r.y += r.vy * dt;
+      for (const c of colliders) {
+        if (r.x > c.x0 && r.x < c.x1 && r.y < c.top && r.y > c.top - 1 && r.vy < 0) {
+          r.y = c.top + 0.2; r.vy *= -0.5;
+        }
+      }
+      r.life -= dt;
+      r.mesh.visible = r.life > 1 || Math.floor(r.life * 8) % 2 === 0;
+      if (r.life <= 0) { disposeGroup(r.mesh); rings.splice(i, 1); continue; }
+      r.mesh.position.set(r.x, r.y, 0);
+    }
+  }
+  // springs squash
+  for (const s of springs) {
+    if (s.t > 0) { s.t -= dt; s.top.scale.y = 0.4 + 0.6 * (1 - Math.max(s.t, 0) / 0.35); }
+  }
+  for (const b of boosts) {
+    if (b.t > 0) b.t -= dt;
+    b.g.children[1].material.emissiveIntensity = 0.5 + Math.sin(G.time * 8) * 0.3;
+    b.g.children[2].material.emissiveIntensity = 0.5 + Math.sin(G.time * 8 + 1) * 0.3;
+  }
+  for (const pk of pickups) {
+    if (pk.taken) continue;
+    pk.g.rotation.y += 2 * dt;
+    pk.g.position.y += Math.sin(G.time * 3 + pk.x) * 0.004;
+  }
+  // boss projectiles + ground shockwaves
+  for (let i = bossShots.length - 1; i >= 0; i--) {
+    const s = bossShots[i];
+    s.life -= dt;
+    if (s.shock) {
+      s.r += s.grow * dt;
+      s.g.scale.set(s.r, 1, s.r);
+      if (!player.dead && player.power !== "star" && player.iFrames <= 0 &&
+          Math.abs(player.x - s.x) < s.r + 0.5 && player.y - player.h / 2 < s.y + 1.4) {
+        hitPlayer();
+      }
+    } else {
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      s.g.position.set(s.x, s.y, 0);
+      s.g.rotation.y += 6 * dt;
+    }
+    if (s.life <= 0) { scene.remove(s.g); s.g.geometry.dispose(); s.g.material.dispose(); bossShots.splice(i, 1); }
+  }
+}
+/* ============================================================
+   BOSSES — one per level, 3 hits each
+   ============================================================ */
+function makeBossShot(x, y, vx, vy, col, r, life) {
+  const g = mesh(new THREE.SphereGeometry(r || 0.45, 10, 8), new THREE.MeshBasicMaterial({ color: col }));
+  g.position.set(x, y, 0); scene.add(g);
+  bossShots.push({ x: x, y: y, vx: vx, vy: vy, r: r || 0.45, g: g, life: life || 4 });
+}
+function makeShockwave(x, y, col) {
+  const g = mesh(new THREE.TorusGeometry(1, 0.25, 8, 26), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85 }));
+  g.rotation.x = Math.PI / 2; g.position.set(x, y + 0.3, 0); scene.add(g);
+  bossShots.push({ shock: true, x: x, y: y, r: 1, grow: 9, g: g, life: 1.4 });
+}
+function damageBoss(b) {
+  if (!boss || b.hitT > 0) return;
+  b.hp--; b.hitT = 0.8; SFX.bossHit();
+  player.vy = 680; player.iFrames = Math.max(player.iFrames, 0.8);
+  document.getElementById("bossfill").style.width = (b.hp / 3 * 100) + "%";
+  puff(b.g.position.x, b.g.position.y, 0xffffff, 10, 260);
+  if (b.hp <= 0) killBoss(b);
+}
+function killBoss(b) {
+  SFX.explode(); SFX.fanfare(); stopMusic();
+  G.score += 1000;
+  const bx = b.g.position.x, by = b.g.position.y;
+  for (let k = 0; k < 5; k++) puff(bx + (Math.random() - 0.5) * 3, by + Math.random() * 2, [0xffd23e, 0xff8844, 0xffffff][k % 3], 8, 380, 0.22);
+  disposeGroup(b.g); boss = null;
+  document.getElementById("bossbar").style.display = "none";
+  // save progress + best time
+  const unlocked = loadNum("tikirush_unlock", 0);
+  if (G.level + 1 > unlocked) saveNum("tikirush_unlock", Math.min(G.level + 1, 4));
+  const bestKey = "tikirush_best" + G.level, prev = loadNum(bestKey, 0);
+  if (!prev || G.time < prev) saveNum(bestKey, Math.floor(G.time));
+  G.bossDefeated++;
+  setTimeout(() => {
+    const cs = CUTSCENES[G.level];
+    document.getElementById("csTitle").textContent = cs.t;
+    document.getElementById("csText").textContent = cs.x;
+    G.state = "cutscene";
+    showScreen("cutsceneScreen");
+  }, 1200);
+}
+function startBossIntro(def) {
+  boss = BOSSES[def.boss].build(def.len + 24);
+  boss.kind = def.boss;
+  G.state = "bossintro"; G.introT = 2.3;
+  document.getElementById("bossName").textContent = BOSSES[def.boss].name;
+  document.getElementById("bossbar").style.display = "block";
+  document.getElementById("bossfill").style.width = "100%";
+  SFX.bossRoar();
+}
+const BOSSES = {
+  /* ---- 1. ROBO-BAT: sine swoops + sonic screeches ---- */
+  bat: {
+    name: "ROBO-BAT",
+    build: function (ax) {
+      const g = new THREE.Group();
+      const m = mat(0x3a2a5a, { metalness: 0.7, roughness: 0.35 });
+      g.add(mesh(new THREE.SphereGeometry(1.25, 14, 12), m));
+      g.add(mesh(new THREE.SphereGeometry(0.75, 12, 10), m, 0, 1.0, 0));
+      [-1, 1].forEach(s => g.add(mesh(new THREE.ConeGeometry(0.28, 0.8, 6), m, 0, 1.7, s * 0.35)));
+      [-1, 1].forEach(s => g.add(mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff2222 }), 0.75, 1.05, s * 0.4)));
+      const wings = [];
+      [-1, 1].forEach(s => {
+        const w = new THREE.Group(); w.position.set(0, 0.4, s * 1.1); g.add(w);
+        const b = mesh(new THREE.BoxGeometry(1.4, 0.12, 2.2), mat(0x55447a, { metalness: 0.6 }), 0, 0, s * 1.2);
+        w.add(b); g.add(w); wings.push(w);
+      });
+      g.position.set(ax, 7, 0); scene.add(g);
+      return { g: g, wings: wings, t: 0, ph: "hover", phT: 0, hp: 3, hitT: 0, shotT: 2, baseX: ax, sx: ax, vulnerable: false };
+    },
+    update: function (b, dt) {
+      b.t += dt; b.phT += dt; b.hitT -= dt;
+      b.wings[0].rotation.x = Math.sin(b.t * 16) * 0.7;
+      b.wings[1].rotation.x = -Math.sin(b.t * 16) * 0.7;
+      if (b.ph === "hover") {
+        b.g.position.x = b.baseX + Math.sin(b.t * 1.25) * 8;
+        b.g.position.y = 7 + Math.sin(b.t * 2.2);
+        b.shotT -= dt;
+        if (b.shotT <= 0) {
+          b.shotT = 2.4;
+          const dir = Math.sign(player.x - b.g.position.x) || 1;
+          makeBossShot(b.g.position.x, b.g.position.y - 1.2, dir * 280, 0, 0x66ddff, 0.55, 3);
+          beep(1200, 600, 0.3, "sawtooth", 0.12);
+        }
+        if (b.phT > 3.4) { b.ph = "swoop"; b.phT = 0; b.sx = player.x; b.y0 = b.g.position.y; }
+      } else { // swoop
+        const k = Math.min(b.phT / 2.0, 1);
+        b.g.position.x = lerp(b.g.position.x, b.sx, 6 * dt);
+        b.g.position.y = b.y0 - Math.sin(k * Math.PI) * (b.y0 - 0.9);
+        if (b.phT > 2.1) { b.ph = "hover"; b.phT = 0; }
+      }
+      b.vulnerable = b.g.position.y < 4.5;
+      if (Math.hypot(player.x - b.g.position.x, player.y - b.g.position.y) < 2.5) {
+        if ((player.spin || player.power === "star") && b.vulnerable) damageBoss(b);
+        else if (b.hitT <= 0) hitPlayer();
+      }
+    }
+  },
+  /* ---- 2. KRAKEN: tentacle slams in the water zone ---- */
+  kraken: {
+    name: "KRAKEN",
+    build: function (ax) {
+      const g = new THREE.Group();
+      const m = mat(0x2a7a5a, { roughness: 0.5 });
+      const head = mesh(new THREE.SphereGeometry(2.0, 16, 12), m, 0, 4.6, 0);
+      head.scale.set(1.15, 0.9, 1); g.add(head);
+      [-1, 1].forEach(s => g.add(mesh(new THREE.SphereGeometry(0.35, 10, 8), mat(0xffd23e, { emissive: 0x664400, emissiveIntensity: 0.5 }), 0.9, 5.2, s * 0.8)));
+      const tents = [];
+      [-1.5, -0.5, 0.5, 1.5].forEach((dx, i) => {
+        const t = new THREE.Group(); t.position.set(dx, 3.6, 0); g.add(t);
+        for (let s = 0; s < 4; s++) {
+          const seg = mesh(new THREE.CylinderGeometry(0.34 - s * 0.06, 0.28 - s * 0.06, 1.3, 8), m, 0, -0.6 - s * 1.15, 0);
+          t.add(seg);
+        }
+        tents.push(t);
+      });
+      g.position.set(ax, 0, 0); scene.add(g);
+      return { g: g, head: head, tents: tents, t: 0, phT: 0, hp: 3, hitT: 0, slamX: 0, vulnerable: false, headDown: false };
+    },
+    update: function (b, dt) {
+      b.t += dt; b.phT += dt; b.hitT -= dt;
+      const cyc = b.phT % 6;
+      b.head.position.y = b.headDown ? lerp(b.head.position.y, 2.0, 6 * dt) : 4.6 + Math.sin(b.t * 1.4) * 0.7;
+      b.head.rotation.y = Math.sin(b.t) * 0.2;
+      b.tents.forEach((t, i) => {
+        t.rotation.z = Math.sin(b.t * 1.8 + i) * 0.22;
+        t.rotation.x = Math.sin(b.t * 1.3 + i * 1.7) * 0.18;
+      });
+      if (cyc > 4.2 && cyc < 4.95) { // telegraph: tentacle lifts near player
+        b.slamX = player.x;
+        b.tents[1].rotation.z = lerp(b.tents[1].rotation.z, Math.sign(player.x - b.g.position.x) * 0.9, 5 * dt);
+      } else if (cyc >= 4.95 && cyc < 5.6) { // slam
+        b.tents[1].rotation.z = lerp(b.tents[1].rotation.z, Math.sign(player.x - b.g.position.x) * 1.5, 14 * dt);
+        b.headDown = true;
+        if (Math.random() < 0.4) puff(b.slamX, 0.6, 0x66e0e0, 2, 160, 0.14);
+        if (Math.abs(player.x - b.g.position.x - b.slamX + b.g.position.x) < 3 && player.iFrames <= 0 && player.power !== "star") hitPlayer();
+      } else { b.headDown = false; }
+      b.vulnerable = b.headDown || (cyc > 0.4 && cyc < 2.0);
+      const hy = b.head.getWorldPosition(new THREE.Vector3()).y;
+      if (Math.hypot(player.x - b.g.position.x, player.y - hy) < 2.9) {
+        if ((player.spin || player.power === "star") && b.vulnerable && b.hitT <= 0) damageBoss(b);
+        else if (b.hitT <= 0) hitPlayer();
+      }
+      if (Math.random() < 0.05) puff(b.g.position.x + (Math.random() - 0.5) * 8, 1 + Math.random() * 3, 0x9fe8ff, 1, 40, 0.12);
+    }
+  },
+  /* ---- 3. JACK-O-LANTERN: fire waves, floats and slams ---- */
+  pumpkin: {
+    name: "JACK-O-LANTERN",
+    build: function (ax) {
+      const g = new THREE.Group();
+      const body = mesh(new THREE.SphereGeometry(1.7, 16, 12), mat(0xff7518, { roughness: 0.45, emissive: 0x662200, emissiveIntensity: 0.35 }), 0, 5.4, 0);
+      body.scale.y = 0.85; g.add(body);
+      [0.35, 0.95, 1.45].forEach((h, i) => {
+        const ridge = mesh(new THREE.TorusGeometry(1.55 - Math.abs(1.0 - h) * 0.5, 0.07, 6, 22), mat(0xc84a0a), 0, h, 0);
+        ridge.rotation.x = Math.PI / 2; ridge.scale.z = 0.85; g.add(ridge);
+      });
+      g.add(mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.7, 8), mat(0x3a7a2a), 0, 7.0, 0));
+      const glow = new THREE.MeshBasicMaterial({ color: 0xffe28a });
+      [-1, 1].forEach(s => {
+        const eye = mesh(new THREE.ConeGeometry(0.3, 0.55, 4), glow, 0.45, 5.75, s * 0.55);
+        eye.rotation.x = Math.PI; g.add(eye);
+      });
+      const mouth = mesh(new THREE.BoxGeometry(1.0, 0.4, 0.4), glow, 0.6, 4.9, 0); g.add(mouth);
+      g.position.set(ax, 0, 0); scene.add(g);
+      return { g: g, t: 0, phT: 0, hp: 3, hitT: 0, shotT: 2, grounded: false, vulnerable: false };
+    },
+    update: function (b, dt) {
+      b.t += dt; b.phT += dt; b.hitT -= dt;
+      const cyc = b.phT % 5.2;
+      const g = b.g;
+      if (cyc < 3.4) { // float & track, spit fire
+        g.position.y = lerp(g.position.y, 0, 4 * dt);
+        g.position.x += clamp(player.x - g.position.x, -60, 60) * dt * 0.5;
+        g.position.y = 5.4 + Math.sin(b.t * 2) * 0.5;
+        b.grounded = false;
+        b.shotT -= dt;
+        if (b.shotT <= 0) {
+          b.shotT = 1.6;
+          const dir = Math.sign(player.x - g.position.x) || 1;
+          makeBossShot(g.position.x + dir, 2.2, dir * 300, 0, 0xff6a1a, 0.5, 3);
+          if (Math.random() < 0.5) makeBossShot(g.position.x + dir, 3.4, dir * 260, 0, 0xffb01a, 0.4, 3);
+          noiseBurst(0.2, 0.15);
+        }
+      } else if (cyc < 3.75) { // slam down
+        g.position.y = lerp(g.position.y, -3.6, 14 * dt);
+      } else { // grounded: shockwave, vulnerable
+        if (!b.grounded) {
+          b.grounded = true; SFX.bossRoar();
+          makeShockwave(g.position.x, 0.2, 0xff6a1a);
+          puff(g.position.x, 0.6, 0xff8844, 12, 320);
+        }
+      }
+      if (cyc > 5.0) { b.grounded = false; b.phT = 0; }
+      b.vulnerable = b.grounded;
+      if (Math.hypot(player.x - g.position.x, player.y - (g.position.y + 5.4)) < 2.9) {
+        if ((player.spin || player.power === "star") && b.vulnerable && b.hitT <= 0) damageBoss(b);
+        else if (b.hitT <= 0) hitPlayer();
+      }
+    }
+  },
+  /* ---- 4. GHOST: phased teleporter, hit only when materialized ---- */
+  ghost: {
+    name: "THE GHOST",
+    build: function (ax) {
+      const g = new THREE.Group();
+      const m = new THREE.MeshStandardMaterial({ color: 0xdfe8ff, transparent: true, opacity: 0.25, roughness: 0.2, emissive: 0x8899cc, emissiveIntensity: 0.3 });
+      const body = mesh(new THREE.SphereGeometry(1.4, 16, 12), m, 0, 3.4, 0); g.add(body);
+      const tail = mesh(new THREE.ConeGeometry(1.25, 2.2, 12), m, 0, 1.6, 0); tail.rotation.x = Math.PI; g.add(tail);
+      [-1, 1].forEach(s => g.add(mesh(new THREE.SphereGeometry(0.18, 8, 8), mat(0x141a30), 0.7, 3.8, s * 0.45)));
+      g.position.set(ax, 0, 0); scene.add(g);
+      return { g: g, m: m, t: 0, tpT: 0, tpCount: 0, ph: "phase", phT: 0, hp: 3, hitT: 0, vulnerable: false };
+    },
+    update: function (b, dt) {
+      b.t += dt; b.phT += dt; b.hitT -= dt;
+      if (b.ph === "phase") {
+        b.m.opacity = lerp(b.m.opacity, 0.25, 6 * dt);
+        b.tpT -= dt;
+        b.g.position.y = 3.2 + Math.sin(b.t * 2.4) * 0.5;
+        b.g.position.x += Math.sin(b.t * 0.9) * 20 * dt;
+        if (b.tpT <= 0) {
+          b.tpT = 2.3; b.tpCount++;
+          b.g.position.x = player.x + (Math.random() < 0.5 ? -1 : 1) * (3.5 + Math.random() * 4);
+          puff(b.g.position.x, b.g.position.y, 0xdfe8ff, 6, 140, 0.14);
+          if (b.tpCount >= 3) { b.ph = "material"; b.phT = 0; }
+        }
+      } else { // materialized: solid + chases, damageable
+        b.m.opacity = lerp(b.m.opacity, 1.0, 8 * dt);
+        const dx = player.x - b.g.position.x, dy = (player.y + 0.5) - (b.g.position.y + 3.4);
+        const d = Math.hypot(dx, dy) || 1;
+        b.g.position.x += dx / d * 135 * dt;
+        b.g.position.y += dy / d * 135 * dt;
+        if (b.phT > 2.6) {
+          b.ph = "phase"; b.phT = 0; b.tpCount = 0; b.tpT = 2.3;
+          const dir = Math.sign(player.x - b.g.position.x) || 1;
+          makeBossShot(b.g.position.x, b.g.position.y + 3, dir * 220, 0, 0xdfe8ff, 0.5, 3);
+          beep(880, 440, 0.4, "sine", 0.12);
+        }
+      }
+      b.vulnerable = b.ph === "material" && b.m.opacity > 0.85;
+      if (b.vulnerable && Math.hypot(player.x - b.g.position.x, player.y - (b.g.position.y + 3)) < 2.6) {
+        if (player.spin || player.power === "star") damageBoss(b);
+        else if (b.hitT <= 0) hitPlayer();
+      }
+    }
+  },
+  /* ---- 5. MECHA-TIGER: dark mirror with all three powers ---- */
+  mecha: {
+    name: "MECHA-TIGER",
+    build: function (ax) {
+      const r2 = buildTiger(true);
+      r2.group.scale.setScalar(1.65);
+      r2.group.position.set(ax + 6, 1.3, 0);
+      scene.add(r2.group);
+      return { g: r2.group, r2: r2, t: 0, ph: "stalk", phT: 0, hp: 3, hitT: 0, shotT: 1.5, vulnerable: true, dashDir: -1 };
+    },
+    update: function (b, dt) {
+      b.t += dt; b.phT += dt; b.hitT -= dt;
+      const g = b.g, run01 = clamp(Math.abs(b.vx || 0) / 500, 0, 1);
+      if (b.ph === "stalk") { // walk + plasma shots
+        const dx = player.x - g.position.x;
+        g.position.x += clamp(dx, -150, 150) * dt;
+        b.vx = 150;
+        b.shotT -= dt;
+        if (b.shotT <= 0) {
+          b.shotT = 1.7;
+          const dir = Math.sign(player.x - g.position.x) || 1;
+          makeBossShot(g.position.x + dir * 1.5, g.position.y + 0.8, dir * 340, 0, 0xff4444, 0.45, 3);
+        }
+        if (b.phT > 2.6) {
+          b.phT = 0;
+          b.ph = (b.cyc = (b.cyc || 0) + 1) % 2 === 0 ? "dash" : "hover";
+          if (b.ph === "dash") { b.dashDir = Math.sign(player.x - g.position.x) || -1; b.vulnerable = false; beep(200, 800, 0.4, "sawtooth", 0.2); }
+        }
+      } else if (b.ph === "dash") { // SUPER SPEED dash — jump over it!
+        g.position.x += b.dashDir * 950 * dt;
+        b.vx = 950;
+        if (Math.random() < 0.6) puff(g.position.x - b.dashDir * 1.5, g.position.y + 0.5, 0xff4444, 1, 60, 0.2);
+        if (g.position.x < LEVELS[G.level].len + 3 || g.position.x > LEVELS[G.level].len + 43) {
+          b.dashDir *= -1;
+          if (b.phT > 1.6) { b.ph = "stalk"; b.phT = 0; b.vulnerable = true; }
+        }
+        if (b.phT > 2.6) { b.ph = "stalk"; b.phT = 0; b.vulnerable = true; }
+      } else { // hover: JETPACK, track, then slam with shockwave
+        if (b.phT < 2.2) {
+          g.position.y = lerp(g.position.y, 6.5, 4 * dt);
+          g.position.x += clamp(player.x - g.position.x, -200, 200) * dt;
+          if (Math.random() < 0.7) puff(g.position.x, g.position.y - 0.5, 0xff7a1a, 1, 80, 0.15);
+        } else if (b.phT < 2.6) {
+          g.position.y = lerp(g.position.y, 1.3, 16 * dt);
+        } else if (b.phT < 2.75) {
+          if (!b.slammed) { b.slammed = true; makeShockwave(g.position.x, 0.2, 0xff4444); SFX.bossRoar(); puff(g.position.x, 0.8, 0xffaa44, 10, 300); }
+        } else { b.slammed = false; b.ph = "stalk"; b.phT = 0; }
+      }
+      g.rotation.y = (player.x < g.position.x) ? Math.PI : 0;
+      animTiger(b.r2, b.t, b.ph === "dash" ? 1 : 0.3, false, dt);
+      b.vulnerable = b.ph !== "dash";
+      const gy = g.position.y;
+      if (Math.hypot(player.x - g.position.x, player.y - gy) < 2.6) {
+        if (player.power === "star") damageBoss(b);
+        else if (player.spin && b.vulnerable && b.hitT <= 0) damageBoss(b);
+        else if (b.hitT <= 0) hitPlayer();
+      }
+    }
+  }
+};
+function updateBoss(dt) {
+  if (!boss) return;
+  BOSSES[boss.kind].update(boss, dt);
+}
+/* ============================================================
+   HUD + SCREENS + FLOW
+   ============================================================ */
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("show"));
+  if (id) document.getElementById(id).classList.add("show");
+}
+function updateHUD() {
+  document.getElementById("hudRings").textContent = "💍 " + G.rings;
+  document.getElementById("hudScore").textContent = "⭐ " + G.score;
+  document.getElementById("hudTime").textContent = "⏱ " + fmtTime(G.time);
+  document.getElementById("hudLives").textContent = "🐯 ×" + G.lives;
+  const pp = document.getElementById("powerPill");
+  if (player.power) {
+    pp.style.display = "inline-block";
+    pp.textContent = player.power === "star" ? "⭐ " + Math.ceil(player.powerT) + "s"
+      : player.power === "speed" ? "⚡ " + Math.ceil(player.powerT) + "s"
+      : "🚀 " + Math.ceil(player.jetFuel) + "s";
+  } else pp.style.display = "none";
+}
+function startLevel(i) {
+  G.level = i; G.time = 0; G.rings = 0; G.checkpointX = 4;
+  player.x = 4; player.y = 3; player.vx = 0; player.vy = 0;
+  player.dead = false; player.iFrames = 2; player.spin = false;
+  endPower();
+  buildLevel(i);
+  G.camX = player.x + 4; G.camY = 4;
+  G.state = "playing";
+  showScreen(null);
+  startMusic(i);
+}
+function startGame(i) {
+  G.lives = 3; G.score = 0; G.bossDefeated = 0;
+  startLevel(i);
+}
+function togglePause() {
+  if (G.state === "playing" || G.state === "boss" || G.state === "bossintro") {
+    G.prevState = G.state; G.state = "paused"; showScreen("pauseScreen"); stopMusic();
+  } else if (G.state === "paused") {
+    G.state = G.prevState || "playing"; showScreen(null); startMusic(G.level);
+  }
+}
+document.getElementById("pauseBtn").addEventListener("click", () => { audioInit(); togglePause(); });
+document.getElementById("btnResume").addEventListener("click", togglePause);
+document.getElementById("btnQuit").addEventListener("click", () => { G.state = "title"; showScreen("titleScreen"); stopMusic(); });
+document.getElementById("btnPlay").addEventListener("click", () => { audioInit(); startGame(Math.min(loadNum("tikirush_unlock", 0), 4)); });
+document.getElementById("btnLevels").addEventListener("click", () => { audioInit(); buildLevelSelect(); showScreen("levelSelect"); G.state = "select"; });
+document.getElementById("btnBackTitle").addEventListener("click", () => { showScreen("titleScreen"); G.state = "title"; });
+document.getElementById("btnRetry").addEventListener("click", () => { startGame(G.level); });
+document.getElementById("btnGoTitle").addEventListener("click", () => { showScreen("titleScreen"); G.state = "title"; });
+document.getElementById("btnVicTitle").addEventListener("click", () => { showScreen("titleScreen"); G.state = "title"; });
+document.getElementById("btnNext").addEventListener("click", () => {
+  if (G.level < 4) startLevel(G.level + 1);
+  else {
+    G.state = "victory";
+    document.getElementById("vicStats").innerHTML =
+      "Final score: <b>" + G.score + "</b><br>All five bosses defeated!<br>Great running, Tigi— er, TIKI! 🐯";
+    showScreen("victoryScreen");
+    SFX.fanfare();
+  }
+});
+function buildLevelSelect() {
+  const grid = document.getElementById("lvlGrid");
+  grid.innerHTML = "";
+  const unlocked = loadNum("tikirush_unlock", 0);
+  LEVELS.forEach((lv, i) => {
+    const btn = document.createElement("button");
+    btn.className = "lvlbtn" + (i > unlocked ? " locked" : "");
+    const best = loadNum("tikirush_best" + i, 0);
+    btn.innerHTML = "LEVEL " + (i + 1) + "<small>" + (i > unlocked ? "🔒 locked" : lv.name + (best ? " · best " + fmtTime(best) : "")) + "</small>";
+    if (i <= unlocked) btn.addEventListener("click", () => { audioInit(); startGame(i); });
+    grid.appendChild(btn);
+  });
+}
+/* ---------------- title art (2D canvas, drawn) ---------------- */
+function drawTitleArt() {
+  const c = document.getElementById("titleCanvas").getContext("2d");
+  const W = 640, H = 360;
+  const sky = c.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#2a1a5e"); sky.addColorStop(0.55, "#e85d8a"); sky.addColorStop(1, "#ffb347");
+  c.fillStyle = sky; c.fillRect(0, 0, W, H);
+  c.fillStyle = "#ffd76b"; c.beginPath(); c.arc(490, 120, 55, 0, TAU); c.fill();
+  // checkered hills
+  for (let hI = 0; hI < 2; hI++) {
+    c.fillStyle = hI === 0 ? "#3f8f3a" : "#58b048";
+    c.beginPath();
+    c.moveTo(0, H);
+    for (let x = 0; x <= W; x += 8) c.lineTo(x, 265 + hI * 45 - Math.sin(x / 90 + hI * 2) * 22);
+    c.lineTo(W, H); c.closePath(); c.fill();
+    // checker overlay on front hill
+    if (hI === 1) {
+      c.fillStyle = "rgba(30,90,30,0.5)";
+      for (let x = 0; x < W; x += 32) for (let y = 265; y < H; y += 32) {
+        if ((x / 32 + y / 32) % 2 === 0) c.fillRect(x, y + 20, 32, 32);
+      }
+    }
+  }
+  // palm silhouettes
+  c.fillStyle = "#1a2a1a";
+  [[70, 250], [150, 265]].forEach(p => {
+    c.fillRect(p[0], p[1] - 60, 10, 70);
+    for (let i = 0; i < 5; i++) {
+      c.save(); c.translate(p[0] + 5, p[1] - 60);
+      c.rotate(i / 5 * TAU);
+      c.fillRect(0, -8, 44, 9);
+      c.restore();
+    }
+  });
+  // tiger face
+  const tx = 170, ty = 165, tr = 62;
+  c.fillStyle = "#f08a24";
+  c.beginPath(); c.arc(tx, ty, tr, 0, TAU); c.fill();
+  [[-1, 1], [1, 1]].forEach(e => {
+    c.beginPath(); c.arc(tx + e[0] * 44, ty - 48, 18, 0, TAU); c.fill();
+  });
+  c.fillStyle = "#241505";
+  [[-1], [1]].forEach((s, i) => {
+    for (let k = 0; k < 3; k++) {
+      c.save(); c.translate(tx + s[0] * (20 + k * 16), ty - 30 + k * 6);
+      c.fillRect(-5, -18, 10, 36);
+      c.restore();
+    }
+  });
+  c.fillStyle = "#fff3e0";
+  c.beginPath(); c.ellipse(tx, ty + 34, 34, 22, 0, 0, TAU); c.fill();
+  c.fillStyle = "#241505";
+  c.beginPath(); c.arc(tx - 20, ty - 8, 9, 0, TAU); c.arc(tx + 20, ty - 8, 9, 0, TAU); c.fill();
+  c.fillStyle = "#4a2a10";
+  c.beginPath(); c.arc(tx, ty + 14, 8, 0, TAU); c.fill();
+  c.strokeStyle = "#241505"; c.lineWidth = 4;
+  c.beginPath(); c.arc(tx, ty + 26, 16, 0.2 * Math.PI, 0.8 * Math.PI); c.stroke();
+  // speed streaks
+  c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 5; c.lineCap = "round";
+  [[10, 120, 90], [2, 160, 70], [24, 210, 100]].forEach(s => {
+    c.beginPath(); c.moveTo(s[0], s[1]); c.lineTo(s[0] + s[2], s[1]); c.stroke();
+  });
+  // title
+  c.textAlign = "center";
+  c.font = "bold 58px 'Trebuchet MS',Verdana,sans-serif";
+  c.lineWidth = 10; c.strokeStyle = "#7a2a08";
+  c.strokeText("TIKI'S TURBO RUSH", 330, 66);
+  const tg = c.createLinearGradient(0, 30, 0, 80);
+  tg.addColorStop(0, "#ffd23e"); tg.addColorStop(1, "#ff7a1a");
+  c.fillStyle = tg;
+  c.fillText("TIKI'S TURBO RUSH", 330, 66);
+  c.font = "bold 20px 'Trebuchet MS',Verdana,sans-serif";
+  c.fillStyle = "#fff";
+  c.fillText("5 levels · 5 bosses · full turbo", 330, 100);
+}
+/* ============================================================
+   MAIN LOOP + BOOT
+   ============================================================ */
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  try {
+    const dt = clamp((now - last) / 1000, 0, 1 / 30);
+    last = now;
+    const t = now / 1000;
+    if (G.state === "playing") {
+      G.time += dt;
+      updatePlayer(dt); updateWorld(dt); updateHUD();
+      jumpEdge = false;
+    } else if (G.state === "bossintro") {
+      G.introT -= dt;
+      animTiger(rig, G.time, 0, false, dt);
+      updateWorld(dt); updateHUD();
+      if (G.introT <= 0) { G.state = "boss"; }
+      jumpEdge = false;
+    } else if (G.state === "boss") {
+      G.time += dt;
+      updatePlayer(dt); updateWorld(dt); updateBoss(dt); updateHUD();
+      jumpEdge = false;
+    } else if (G.state === "cutscene" || G.state === "gameover" || G.state === "victory" || G.state === "paused" || G.state === "select" || G.state === "title") {
+      if (G.state === "title" || G.state === "select") { animTiger(rig, t, 0, false, dt); }
+      jumpEdge = false;
+    }
+    updateParts(dt);
+    // camera
+    let tx = player.x + 4.5 + player.vx * 0.04, ty = Math.max(player.y + 2.2, 3.2), dist = camDist;
+    if (G.state === "bossintro" && boss) {
+      tx = boss.g.position.x; ty = boss.g.position.y + 2; dist = camDist * 0.55;
+    } else if (boss) {
+      const def = LEVELS[G.level];
+      tx = clamp(tx, def.len + 9, def.len + 37);
+    }
+    G.camX = lerp(G.camX, tx, 1 - Math.exp(-5 * dt));
+    G.camY = lerp(G.camY, ty, 1 - Math.exp(-5 * dt));
+    camera.position.set(G.camX, G.camY, dist);
+    camera.lookAt(G.camX, G.camY - 0.6, 0);
+    sun.position.set(G.camX + 14, 26, 16);
+    sun.target.position.set(G.camX, 0, 0);
+    renderer.render(scene, camera);
+  } catch (err) {
+    ERRORS.push("loop: " + err.message);
+  }
+}
+/* boot */
+rig = buildTiger(false);
+scene.add(rig.group);
+rig.group.position.set(4, 1.1, 0);
+drawTitleArt();
+buildLevelSelect();
+onResize();
+document.addEventListener("pointerdown", audioInit);
+window.__TIKI = { G: G, player: player, startGame: startGame, startLevel: startLevel, errors: ERRORS };
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
