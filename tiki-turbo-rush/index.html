@@ -396,7 +396,7 @@ function animTiger(r, t, run01, spinning, dt) {
   r.tail.rotation.x = Math.sin(t * 4) * 0.25;
   r.head.rotation.x = Math.sin(t * 2.2) * 0.06 * (1 - run01); // idle breathing head-bob
   if (spinning) r.group.rotation.x -= 10 * dt * (1 + run01);
-  else r.group.rotation.x = lerp(r.group.rotation.x % TAU, 0, 0.2);
+  else r.group.rotation.x = lerp(r.group.rotation.x, Math.round(r.group.rotation.x / TAU) * TAU, 0.35); // land upright, never upside down
 }
 function flashTiger(r, on) {
   r.mats.forEach(m => { m.emissive = m.emissive || new THREE.Color(0); m.emissive.setHex(on ? 0xff2222 : 0x000000); });
@@ -481,7 +481,7 @@ function makeWalker(x, y) {
   const wheel = mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.5, 10), mat(0x22262e), 0, 0.42, 0);
   wheel.rotation.x = Math.PI / 2; g.add(wheel);
   g.position.set(x, y, 0); scene.add(g);
-  enemies.push({ type: "walker", x: x, y: y, r: 1.15, g: g, wheel: wheel, x0: x - 4.5, x1: x + 4.5, dir: 1, spd: 45, dead: false });
+  enemies.push({ type: "walker", x: x, y: y, r: 1.15, g: g, wheel: wheel, x0: x - 4.5, x1: x + 4.5, dir: 1, spd: 2.2, dead: false });
 }
 function makeCrusher(x, topY, bottomY) {
   const g = new THREE.Group();
@@ -573,7 +573,7 @@ function puff(x, y, col, n, spd, size) {
 function updateParts(dt) {
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i], u = p.userData;
-    u.t += dt; u.vy -= 500 * dt;
+    u.t += dt; u.vy -= 25 * dt;
     p.position.x += u.vx * dt; p.position.y += u.vy * dt;
     p.material.opacity = Math.max(0, 1 - u.t / u.life);
     if (u.t >= u.life) { scene.remove(p); p.geometry.dispose(); p.material.dispose(); parts.splice(i, 1); }
@@ -586,7 +586,7 @@ function updateParts(dt) {
 const colliders = [], hazards = [], enemies = [], rings = [], springs = [],
       boosts = [], movers = [], pickups = [], bossShots = [];
 let boss = null;
-const GRAV = 2600, ACC = 1150, MAXSPD = 330, JUMPV = 980;
+const GRAV = 40, ACC = 55, MAXSPD = 21, JUMPV = 18;
 const player = {
   x: 4, y: 3, vx: 0, vy: 0, w: 1.3, h: 2.6,
   onGround: false, facing: 1, spin: false, rolling: false,
@@ -700,7 +700,7 @@ function updatePlayer(dt) {
     p.vx += dir * acc * dt;
     p.facing = dir;
   } else if (p.onGround) {
-    const f = 1650 * dt;
+    const f = 70 * dt;
     p.vx = Math.abs(p.vx) < f ? 0 : p.vx - Math.sign(p.vx) * f;
   } else p.vx *= 1 - 0.4 * dt;
   p.vx = clamp(p.vx, -MAXSPD * speedMult(), MAXSPD * speedMult());
@@ -709,13 +709,13 @@ function updatePlayer(dt) {
 
   if (jumpEdge) {
     jumpEdge = false;
-    if (p.onGround) { p.vy = JUMPV; p.onGround = false; p.spin = true; SFX.jump(); puff(p.x, p.y, 0xcccccc, 5, 120); }
+    if (p.onGround) { p.vy = JUMPV; p.onGround = false; p.spin = true; SFX.jump(); puff(p.x, p.y, 0xcccccc, 5, 6); }
   }
-  if (!input.jump && p.vy > 320) p.vy = 320; // variable jump height
+  if (p.spin && !input.jump && p.vy > 9) p.vy = 9; // variable jump height (jumps only — springs launch at full power)
   // jetpack hover
   if (p.power === "jet" && input.jump && p.jetFuel > 0 && !p.onGround) {
-    p.vy = Math.min(p.vy + 4200 * dt, 430); p.jetFuel -= dt;
-    if (Math.random() < 0.7) puff(p.x - p.facing * 0.5, p.y - 0.8, Math.random() < 0.5 ? 0xff7a1a : 0xffd23e, 1, 90, 0.14);
+    p.vy = Math.min(p.vy + 70 * dt, 20); p.jetFuel -= dt;
+    if (Math.random() < 0.7) puff(p.x - p.facing * 0.5, p.y - 0.8, Math.random() < 0.5 ? 0xff7a1a : 0xffd23e, 1, 5, 0.14);
   }
   p.vy -= GRAV * dt;
   const prevY = p.y, prevFeet = p.y - p.h / 2;
@@ -737,14 +737,14 @@ function updatePlayer(dt) {
   // boost pads
   for (const b of boosts) {
     if (Math.abs(p.x - b.x) < 2 && Math.abs(feet - b.y) < 1.2) {
-      p.vx = b.dir * 600; p.vy = Math.max(p.vy, 260); b.t = 0.4; SFX.spring();
-      puff(b.x, b.y + 1, 0x4affd8, 6, 200);
+      p.vx = b.dir * 36; p.vy = Math.max(p.vy, 10); b.t = 0.4; SFX.spring();
+      puff(b.x, b.y + 1, 0x4affd8, 6, 10);
     }
   }
   // springs
   for (const s of springs) {
     if (Math.abs(p.x - s.x) < 1.2 && feet < s.y + 1.4 && feet > s.y - 0.4 && p.vy <= 0) {
-      p.vy = 1350; p.onGround = false; p.spin = false; s.t = 0.35; SFX.spring();
+      p.vy = 27; p.onGround = false; p.spin = false; s.t = 0.35; SFX.spring();
     }
   }
   // rings
@@ -753,7 +753,7 @@ function updatePlayer(dt) {
     if (Math.hypot(p.x - r.x, p.y - r.y) < 1.45) {
       r.taken = true; disposeGroup(r.mesh);
       G.rings++; G.score += 10; SFX.ring();
-      puff(r.x, r.y, 0xffd23e, 3, 60, 0.1);
+      puff(r.x, r.y, 0xffd23e, 3, 4, 0.1);
     }
   }
   // pickups
@@ -784,8 +784,8 @@ function updatePlayer(dt) {
     if (Math.hypot(p.x - e.x, p.y - (e.y + 1)) < e.r + 1) {
       if (invincible || (spinning && !p.onGround)) {
         e.dead = true; disposeGroup(e.g); SFX.stomp();
-        G.score += 100; puff(e.x, e.y + 1, 0xffaa44, 10, 220);
-        p.vy = 700;
+        G.score += 100; puff(e.x, e.y + 1, 0xffaa44, 10, 11);
+        p.vy = 26;
       } else hitPlayer();
     }
   }
@@ -819,7 +819,7 @@ function updatePlayer(dt) {
       rig.aura.scale.setScalar(1 + Math.sin(G.time * 10) * 0.06);
     } else if (p.power === "speed") {
       p.trailT -= dt;
-      if (p.trailT <= 0) { puff(p.x - p.facing * 1.2, p.y, 0xffd23e, 1, 40, 0.2); p.trailT = 0.05; }
+      if (p.trailT <= 0) { puff(p.x - p.facing * 1.2, p.y, 0xffd23e, 1, 3, 0.2); p.trailT = 0.05; }
     }
     if (p.powerT <= 0) endPower();
   } else rig.aura.visible = false;
@@ -837,18 +837,18 @@ function hitPlayer() {
   if (G.rings > 0) {
     const n = Math.min(G.rings, 12);
     for (let i = 0; i < n; i++) {
-      const r = { x: p.x, y: p.y, mesh: mesh(new THREE.TorusGeometry(0.5, 0.13, 8, 20), new THREE.MeshStandardMaterial({ color: 0xffd23e, emissive: 0x996500, roughness: 0.3, metalness: 0.6 }), p.x, p.y, 0), taken: false, scatter: true, vx: (Math.random() - 0.5) * 460, vy: 300 + Math.random() * 320, life: 3.5 };
+      const r = { x: p.x, y: p.y, mesh: mesh(new THREE.TorusGeometry(0.5, 0.13, 8, 20), new THREE.MeshStandardMaterial({ color: 0xffd23e, emissive: 0x996500, roughness: 0.3, metalness: 0.6 }), p.x, p.y, 0), taken: false, scatter: true, vx: (Math.random() - 0.5) * 22, vy: 14 + Math.random() * 16, life: 3.5 };
       r.mesh.castShadow = false; scene.add(r.mesh); rings.push(r);
     }
     G.rings = 0; SFX.hit(); p.iFrames = 1.7;
-    p.vy = 520; p.vx = -p.facing * 260;
+    p.vy = 22; p.vx = -p.facing * 12;
   } else die();
 }
 function die() {
   const p = player;
   if (p.dead) return;
   p.dead = true; G.lives--; SFX.die(); endPower();
-  puff(p.x, p.y, 0xff8844, 14, 300);
+  puff(p.x, p.y, 0xff8844, 14, 14);
   setTimeout(() => {
     if (G.lives <= 0) {
       G.state = "gameover";
@@ -913,7 +913,7 @@ function updateWorld(dt) {
     if (r.taken) { rings.splice(i, 1); continue; }
     r.mesh.rotation.y += 3 * dt;
     if (r.scatter) {
-      r.vy -= 1600 * dt;
+      r.vy -= 24 * dt;
       r.x += r.vx * dt; r.y += r.vy * dt;
       for (const c of colliders) {
         if (r.x > c.x0 && r.x < c.x1 && r.y < c.top && r.y > c.top - 1 && r.vy < 0) {
@@ -975,16 +975,16 @@ function makeShockwave(x, y, col) {
 function damageBoss(b) {
   if (!boss || b.hitT > 0) return;
   b.hp--; b.hitT = 0.8; SFX.bossHit();
-  player.vy = 680; player.iFrames = Math.max(player.iFrames, 0.8);
+  player.vy = 26; player.iFrames = Math.max(player.iFrames, 0.8);
   document.getElementById("bossfill").style.width = (b.hp / 3 * 100) + "%";
-  puff(b.g.position.x, b.g.position.y, 0xffffff, 10, 260);
+  puff(b.g.position.x, b.g.position.y, 0xffffff, 10, 12);
   if (b.hp <= 0) killBoss(b);
 }
 function killBoss(b) {
   SFX.explode(); SFX.fanfare(); stopMusic();
   G.score += 1000;
   const bx = b.g.position.x, by = b.g.position.y;
-  for (let k = 0; k < 5; k++) puff(bx + (Math.random() - 0.5) * 3, by + Math.random() * 2, [0xffd23e, 0xff8844, 0xffffff][k % 3], 8, 380, 0.22);
+  for (let k = 0; k < 5; k++) puff(bx + (Math.random() - 0.5) * 3, by + Math.random() * 2, [0xffd23e, 0xff8844, 0xffffff][k % 3], 8, 16, 0.22);
   disposeGroup(b.g); boss = null;
   document.getElementById("bossbar").style.display = "none";
   // save progress + best time
@@ -1041,7 +1041,7 @@ const BOSSES = {
         if (b.shotT <= 0) {
           b.shotT = 2.4;
           const dir = Math.sign(player.x - b.g.position.x) || 1;
-          makeBossShot(b.g.position.x, b.g.position.y - 1.2, dir * 280, 0, 0x66ddff, 0.55, 3);
+          makeBossShot(b.g.position.x, b.g.position.y - 1.2, dir * 14, 0, 0x66ddff, 0.55, 3);
           beep(1200, 600, 0.3, "sawtooth", 0.12);
         }
         if (b.phT > 3.4) { b.ph = "swoop"; b.phT = 0; b.sx = player.x; b.y0 = b.g.position.y; }
@@ -1094,7 +1094,7 @@ const BOSSES = {
       } else if (cyc >= 4.95 && cyc < 5.6) { // slam
         b.tents[1].rotation.z = lerp(b.tents[1].rotation.z, Math.sign(player.x - b.g.position.x) * 1.5, 14 * dt);
         b.headDown = true;
-        if (Math.random() < 0.4) puff(b.slamX, 0.6, 0x66e0e0, 2, 160, 0.14);
+        if (Math.random() < 0.4) puff(b.slamX, 0.6, 0x66e0e0, 2, 8, 0.14);
         if (Math.abs(player.x - b.g.position.x - b.slamX + b.g.position.x) < 3 && player.iFrames <= 0 && player.power !== "star") hitPlayer();
       } else { b.headDown = false; }
       b.vulnerable = b.headDown || (cyc > 0.4 && cyc < 2.0);
@@ -1103,7 +1103,7 @@ const BOSSES = {
         if ((player.spin || player.power === "star") && b.vulnerable && b.hitT <= 0) damageBoss(b);
         else if (b.hitT <= 0) hitPlayer();
       }
-      if (Math.random() < 0.05) puff(b.g.position.x + (Math.random() - 0.5) * 8, 1 + Math.random() * 3, 0x9fe8ff, 1, 40, 0.12);
+      if (Math.random() < 0.05) puff(b.g.position.x + (Math.random() - 0.5) * 8, 1 + Math.random() * 3, 0x9fe8ff, 1, 3, 0.12);
     }
   },
   /* ---- 3. JACK-O-LANTERN: fire waves, floats and slams ---- */
@@ -1133,15 +1133,15 @@ const BOSSES = {
       const g = b.g;
       if (cyc < 3.4) { // float & track, spit fire
         g.position.y = lerp(g.position.y, 0, 4 * dt);
-        g.position.x += clamp(player.x - g.position.x, -60, 60) * dt * 0.5;
+        g.position.x += clamp(player.x - g.position.x, -3, 3) * dt;
         g.position.y = 5.4 + Math.sin(b.t * 2) * 0.5;
         b.grounded = false;
         b.shotT -= dt;
         if (b.shotT <= 0) {
           b.shotT = 1.6;
           const dir = Math.sign(player.x - g.position.x) || 1;
-          makeBossShot(g.position.x + dir, 2.2, dir * 300, 0, 0xff6a1a, 0.5, 3);
-          if (Math.random() < 0.5) makeBossShot(g.position.x + dir, 3.4, dir * 260, 0, 0xffb01a, 0.4, 3);
+          makeBossShot(g.position.x + dir, 2.2, dir * 15, 0, 0xff6a1a, 0.5, 3);
+          if (Math.random() < 0.5) makeBossShot(g.position.x + dir, 3.4, dir * 13, 0, 0xffb01a, 0.4, 3);
           noiseBurst(0.2, 0.15);
         }
       } else if (cyc < 3.75) { // slam down
@@ -1150,7 +1150,7 @@ const BOSSES = {
         if (!b.grounded) {
           b.grounded = true; SFX.bossRoar();
           makeShockwave(g.position.x, 0.2, 0xff6a1a);
-          puff(g.position.x, 0.6, 0xff8844, 12, 320);
+          puff(g.position.x, 0.6, 0xff8844, 12, 14);
         }
       }
       if (cyc > 5.0) { b.grounded = false; b.phT = 0; }
@@ -1183,19 +1183,19 @@ const BOSSES = {
         if (b.tpT <= 0) {
           b.tpT = 2.3; b.tpCount++;
           b.g.position.x = player.x + (Math.random() < 0.5 ? -1 : 1) * (3.5 + Math.random() * 4);
-          puff(b.g.position.x, b.g.position.y, 0xdfe8ff, 6, 140, 0.14);
+          puff(b.g.position.x, b.g.position.y, 0xdfe8ff, 6, 7, 0.14);
           if (b.tpCount >= 3) { b.ph = "material"; b.phT = 0; }
         }
       } else { // materialized: solid + chases, damageable
         b.m.opacity = lerp(b.m.opacity, 1.0, 8 * dt);
         const dx = player.x - b.g.position.x, dy = (player.y + 0.5) - (b.g.position.y + 3.4);
         const d = Math.hypot(dx, dy) || 1;
-        b.g.position.x += dx / d * 135 * dt;
-        b.g.position.y += dy / d * 135 * dt;
+        b.g.position.x += dx / d * 7 * dt;
+        b.g.position.y += dy / d * 7 * dt;
         if (b.phT > 2.6) {
           b.ph = "phase"; b.phT = 0; b.tpCount = 0; b.tpT = 2.3;
           const dir = Math.sign(player.x - b.g.position.x) || 1;
-          makeBossShot(b.g.position.x, b.g.position.y + 3, dir * 220, 0, 0xdfe8ff, 0.5, 3);
+          makeBossShot(b.g.position.x, b.g.position.y + 3, dir * 11, 0, 0xdfe8ff, 0.5, 3);
           beep(880, 440, 0.4, "sine", 0.12);
         }
       }
@@ -1221,13 +1221,13 @@ const BOSSES = {
       const g = b.g, run01 = clamp(Math.abs(b.vx || 0) / 500, 0, 1);
       if (b.ph === "stalk") { // walk + plasma shots
         const dx = player.x - g.position.x;
-        g.position.x += clamp(dx, -150, 150) * dt;
+        g.position.x += clamp(dx, -7, 7) * dt;
         b.vx = 150;
         b.shotT -= dt;
         if (b.shotT <= 0) {
           b.shotT = 1.7;
           const dir = Math.sign(player.x - g.position.x) || 1;
-          makeBossShot(g.position.x + dir * 1.5, g.position.y + 0.8, dir * 340, 0, 0xff4444, 0.45, 3);
+          makeBossShot(g.position.x + dir * 1.5, g.position.y + 0.8, dir * 17, 0, 0xff4444, 0.45, 3);
         }
         if (b.phT > 2.6) {
           b.phT = 0;
@@ -1235,9 +1235,9 @@ const BOSSES = {
           if (b.ph === "dash") { b.dashDir = Math.sign(player.x - g.position.x) || -1; b.vulnerable = false; beep(200, 800, 0.4, "sawtooth", 0.2); }
         }
       } else if (b.ph === "dash") { // SUPER SPEED dash — jump over it!
-        g.position.x += b.dashDir * 760 * dt;
-        b.vx = 760;
-        if (Math.random() < 0.6) puff(g.position.x - b.dashDir * 1.5, g.position.y + 0.5, 0xff4444, 1, 60, 0.2);
+        g.position.x += b.dashDir * 38 * dt;
+        b.vx = 38;
+        if (Math.random() < 0.6) puff(g.position.x - b.dashDir * 1.5, g.position.y + 0.5, 0xff4444, 1, 4, 0.2);
         if (g.position.x < LEVELS[G.level].len + 3 || g.position.x > LEVELS[G.level].len + 43) {
           b.dashDir *= -1;
           if (b.phT > 1.6) { b.ph = "stalk"; b.phT = 0; b.vulnerable = true; }
@@ -1246,12 +1246,12 @@ const BOSSES = {
       } else { // hover: JETPACK, track, then slam with shockwave
         if (b.phT < 2.2) {
           g.position.y = lerp(g.position.y, 6.5, 4 * dt);
-          g.position.x += clamp(player.x - g.position.x, -200, 200) * dt;
-          if (Math.random() < 0.7) puff(g.position.x, g.position.y - 0.5, 0xff7a1a, 1, 80, 0.15);
+          g.position.x += clamp(player.x - g.position.x, -9, 9) * dt;
+          if (Math.random() < 0.7) puff(g.position.x, g.position.y - 0.5, 0xff7a1a, 1, 5, 0.15);
         } else if (b.phT < 2.6) {
           g.position.y = lerp(g.position.y, 1.3, 16 * dt);
         } else if (b.phT < 2.75) {
-          if (!b.slammed) { b.slammed = true; makeShockwave(g.position.x, 0.2, 0xff4444); SFX.bossRoar(); puff(g.position.x, 0.8, 0xffaa44, 10, 300); }
+          if (!b.slammed) { b.slammed = true; makeShockwave(g.position.x, 0.2, 0xff4444); SFX.bossRoar(); puff(g.position.x, 0.8, 0xffaa44, 10, 13); }
         } else { b.slammed = false; b.ph = "stalk"; b.phT = 0; }
       }
       g.rotation.y = (player.x < g.position.x) ? Math.PI : 0;
@@ -1449,7 +1449,7 @@ function frame(now) {
     }
     updateParts(dt);
     // camera
-    let tx = player.x + 1.5 + player.vx * 0.012, ty = Math.max(player.y + 1.9, 2.9), dist = camDist;
+    let tx = player.x + 2 + player.vx * 0.12, ty = Math.max(player.y + 1.9, 2.9), dist = camDist;
     if (G.state === "bossintro" && boss) {
       tx = boss.g.position.x; ty = boss.g.position.y + 2; dist = camDist * 0.55;
     } else if (boss) {
@@ -1475,7 +1475,7 @@ drawTitleArt();
 buildLevelSelect();
 onResize();
 document.addEventListener("pointerdown", audioInit);
-window.__TIKI = { G: G, player: player, startGame: startGame, startLevel: startLevel, errors: ERRORS };
+window.__TIKI = { G: G, player: player, startGame: startGame, startLevel: startLevel, errors: ERRORS, CONST: { GRAV: GRAV, MAXSPD: MAXSPD, JUMPV: JUMPV } };
 requestAnimationFrame(frame);
 })();
 </script>
