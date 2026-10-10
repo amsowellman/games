@@ -7,9 +7,10 @@
 <meta name="theme-color" content="#0b0e2a">
 <title>STAR BED</title>
 <style>
-  /* Full-screen canvas, no scrolling, no text selection, no touch gestures. */
-  html, body { margin: 0; padding: 0; position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0e2a; }
-  canvas { position: absolute; top: 0; left: 0; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  /* Fixed sandbox box (like Hot Dog Mallow Jump): page pinned, canvas
+     centered and CSS-scaled to fit; no scrolling or touch gestures. */
+  html, body { margin: 0; padding: 0; position: fixed; inset: 0; overflow: hidden; background: #0b0e2a; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 </style>
 </head>
 <body>
@@ -68,12 +69,25 @@ function layout() {
   btnBack = { x: 14, y: 14, w: 108, h: 44 };
   buildNebula();
 }
+// Fixed sandbox playfield: the game always runs at a logical 480x720 and the
+// canvas is CSS-scaled to fit the real screen, so the view never looks zoomed
+// in on a big desktop monitor or a phone.
+const GAME_W = 480, GAME_H = 720;
+function fit() {
+  const vv = window.visualViewport;
+  const vw = vv ? vv.width : window.innerWidth;
+  const vh = vv ? vv.height : window.innerHeight;
+  const s = Math.min((vw * 0.96) / GAME_W, (vh * 0.94) / GAME_H);
+  canvas.style.width = Math.round(GAME_W * s) + "px";
+  canvas.style.height = Math.round(GAME_H * s) + "px";
+}
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
+  W = GAME_W; H = GAME_H;
   canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   layout();
+  fit();
 }
 window.addEventListener("resize", resize);
 
@@ -187,7 +201,7 @@ let hearts = 5, score = 0, wave = 0;
 let critters = [], flights = [];
 let waveState = "rest", restT = 1.0, queue = [], spawnTimer = 0, spawnGap = 2;
 let penTypes = loadPets();
-let penList = [], penT = 0;
+let penList = [], penT = 0, penFood = [];
 let bestWave = loadNum(KEY_WAVE), bestCaught = loadNum(KEY_CAUGHT);
 let gameTime = 0;
 
@@ -468,7 +482,8 @@ function enterPen() {
     penList.push({
       sp, x: rnd(fence.x + 40, fence.x + fence.w - 40), y: rnd(fence.y + 40, fence.y + fence.h - 40),
       vx: 0, vy: 0, t: rnd(0, 3), phase: rnd(0, TAU), wig: 0, dizzy: false, alpha: 1, spikesOut: false, spikeT: rnd(0, 3),
-      mode: "wander", timer: rnd(0.5, 2), tx: 0, ty: 0, target: null
+      mode: "wander", timer: rnd(0.5, 2), tx: 0, ty: 0, target: null,
+      heading: rnd(0, TAU), spd: 0, tail: rnd(0, TAU)
     });
     penList[penList.length - 1].tx = penList[penList.length - 1].x;
     penList[penList.length - 1].ty = penList[penList.length - 1].y;
@@ -476,32 +491,59 @@ function enterPen() {
 }
 function updatePen(dt) {
   penT += dt;
+  // Snack pellets sink slowly and dissolve if nobody eats them.
+  for (let i = penFood.length - 1; i >= 0; i--) {
+    const f = penFood[i]; f.t += dt; f.y += 26 * dt;
+    if (f.t > 9 || f.y > fence.y + fence.h - 16) penFood.splice(i, 1);
+  }
   for (const p of penList) {
-    p.t += dt; p.wig = Math.max(0, p.wig - dt * 2);
+    p.t += dt; p.tail += dt * (4 + p.spd * 0.12); p.wig = Math.max(0, p.wig - dt * 2);
     if (p.sp === "spiker") p.spikesOut = (p.spikeT += dt) % 3 < 1.5;
     p.timer -= dt;
-    if (p.mode === "wander") {
-      const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
-      if (d > 6) { p.x += dx / d * 28 * dt; p.y += dy / d * 28 * dt; p.vx = dx / d * 28; p.vy = dy / d * 28; }
-      else { p.vx = 0; p.vy = 0; }
-      if (p.timer <= 0) {
-        const r = Math.random();
-        if (r < 0.25) { p.mode = "nap"; p.timer = rnd(2.5, 5); }
-        else if (r < 0.4 && penList.length > 1) { p.mode = "chase"; p.timer = rnd(1.5, 2.5); p.target = penList[(Math.random() * penList.length) | 0]; }
-        else { p.mode = "wander"; p.timer = rnd(1, 3); p.tx = rnd(fence.x + 40, fence.x + fence.w - 40); p.ty = rnd(fence.y + 40, fence.y + fence.h - 40); }
+
+    // Hungry fish: the nearest snack pellet wins over everything else.
+    let goalX = p.tx, goalY = p.ty, speed = 34;
+    if (penFood.length) {
+      let best = null, bd = 1e9;
+      for (const f of penFood) { const d = Math.hypot(f.x - p.x, f.y - p.y); if (d < bd) { bd = d; best = f; } }
+      goalX = best.x; goalY = best.y; speed = 95;
+      if (bd < 16) { // yum!
+        penFood.splice(penFood.indexOf(best), 1);
+        p.wig = 1; sPop();
+        burst(p.x, p.y, ["#ffe98a", "#aee6ff"], 6, 60, "star");
       }
     } else if (p.mode === "nap") {
-      p.vx = 0; p.vy = 0;
+      speed = 0;
       if (Math.random() < dt * 1.2) addPart({ kind: "zz", x: p.x + 10, y: p.y - SPECIES[p.sp].r - 4, vx: 12, vy: -22, t: 0, life: 1.2, r: 10, col: "#cfd8ff", rot: 0 });
-      if (p.timer <= 0) { p.mode = "wander"; p.timer = rnd(1, 3); p.tx = rnd(fence.x + 40, fence.x + fence.w - 40); p.ty = rnd(fence.y + 40, fence.y + fence.h - 40); }
     } else if (p.mode === "chase") {
-      const o = p.target;
-      if (o) {
-        const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy) || 1;
-        if (d > 24) { p.x += dx / d * 52 * dt; p.y += dy / d * 52 * dt; p.vx = dx / d * 52; p.vy = dy / d * 52; }
-      }
-      if (p.timer <= 0) { p.mode = "wander"; p.timer = rnd(1, 3); p.tx = p.x; p.ty = p.y; }
+      speed = 62;
+      if (p.target) { goalX = p.target.x; goalY = p.target.y; }
     }
+
+    // Fish steering: ease the speed, turn toward the goal with a limited
+    // turn rate — everyone glides in smooth arcs instead of snapping.
+    const dx = goalX - p.x, dy = goalY - p.y, d = Math.hypot(dx, dy);
+    if (d > 4 && speed > 0) {
+      const want = Math.atan2(dy, dx);
+      let diff = want - p.heading;
+      while (diff > Math.PI) diff -= TAU;
+      while (diff < -Math.PI) diff += TAU;
+      p.heading += clamp(diff, -3 * dt, 3 * dt);
+      p.spd = lerp(p.spd, speed, 1 - Math.exp(-4 * dt));
+    } else {
+      p.spd = lerp(p.spd, 0, 1 - Math.exp(-4 * dt));
+    }
+    p.x += Math.cos(p.heading) * p.spd * dt;
+    p.y += Math.sin(p.heading) * p.spd * dt;
+
+    if (p.timer <= 0 && !penFood.length) {
+      const r = Math.random();
+      if (r < 0.25) { p.mode = "nap"; p.timer = rnd(2.5, 5); }
+      else if (r < 0.4 && penList.length > 1) { p.mode = "chase"; p.timer = rnd(1.5, 2.5); p.target = penList[(Math.random() * penList.length) | 0]; }
+      else { p.mode = "wander"; p.timer = rnd(1, 3); p.tx = rnd(fence.x + 40, fence.x + fence.w - 40); p.ty = rnd(fence.y + 40, fence.y + fence.h - 40); }
+    }
+    if (p.target && !penList.includes(p.target)) p.target = null;
+
     // Keep everyone inside the cozy fence.
     p.x = clamp(p.x, fence.x + 24, fence.x + fence.w - 24);
     p.y = clamp(p.y, fence.y + 24, fence.y + fence.h - 24);
@@ -865,8 +907,30 @@ function drawPen(gt) {
     ctx.drawImage(glowGold, cx - 26, cy - 26, 52, 52);
   }
   ctx.restore();
+  // Snack pellets, drawn first so fish swim over them.
+  for (const f of penFood) {
+    ctx.globalAlpha = f.t > 7 ? Math.max(0, (9 - f.t) / 2) : 1;
+    ctx.fillStyle = "rgba(255,210,62,0.35)";
+    ctx.beginPath(); ctx.arc(f.x, f.y, 6, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#ffd23e";
+    ctx.beginPath(); ctx.arc(f.x, f.y, 3, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
   for (const p of penList) {
     ctx.save();
+    // Little wiggling tail trailing behind everyone as they swim.
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(p.heading + Math.PI + Math.sin(p.tail) * 0.45);
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    const R = SPECIES[p.sp].r;
+    ctx.beginPath();
+    ctx.moveTo(R - 2, 0); ctx.lineTo(R + 12, -7); ctx.lineTo(R + 12, 7);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // Bank into turns and bob gently, like a real fish.
+    ctx.translate(p.x, p.y);
+    ctx.rotate(Math.sin(p.heading) * 0.18 * Math.min(1, p.spd / 40) + Math.sin(penT * 3 + p.phase) * 0.05);
+    ctx.translate(-p.x, -p.y);
     if (p.wig > 0) { ctx.translate(p.x, p.y); ctx.rotate(Math.sin(gt * 30) * 0.25 * p.wig); ctx.translate(-p.x, -p.y); }
     drawCritter(p);
     ctx.restore();
@@ -876,7 +940,7 @@ function drawPen(gt) {
   ctx.fillStyle = "#fff3c8"; ctx.font = "bold 26px 'Comic Sans MS','Chalkboard SE',sans-serif";
   ctx.fillText("PET PEN", W / 2, 20);
   ctx.font = "15px sans-serif"; ctx.fillStyle = "#aab6ff";
-  ctx.fillText(penTypes.length + " friends live here — tap them to say hi!", W / 2, 52);
+  ctx.fillText(penTypes.length + " friends live here — tap the water to drop a snack!", W / 2, 52);
   drawParticles();
 }
 
@@ -893,12 +957,21 @@ function ptDown(x, y) {
     }
   } else if (state === "pen") {
     if (inBtn(btnBack, x, y, 12)) { sPop(); state = "title"; return; }
+    let petted = false;
     for (const p of penList) {
       if (Math.hypot(x - p.x, y - p.y) < SPECIES[p.sp].r + 14) {
         p.wig = 1; sBoing();
         burst(p.x, p.y - SPECIES[p.sp].r, ["#ffe98a", "#aee6ff"], 6, 70, "star");
+        petted = true;
         break;
       }
+    }
+    // Tap open water: drop a snack pellet for the fish to chase.
+    if (!petted && penFood.length < 12 &&
+        x > fence.x && x < fence.x + fence.w && y > fence.y && y < fence.y + fence.h) {
+      penFood.push({ x, y, t: 0 });
+      sPop();
+      burst(x, y, ["#fff2a8", "#aee6ff"], 5, 40);
     }
   } else if (state === "gameover") {
     sPop(); resetGame(); // one-tap restart
@@ -923,10 +996,10 @@ function inBtn(b, x, y, pad) {
 
 let pointerId = null;
 function canvasXY(e) {
-  // Canvas-relative coords: correct even if mobile browser UI scrolled or
-  // offset the page (URL bar show/hide). Never assume rect.top === 0.
+  // Canvas-relative coords scaled to logical game units (the canvas is
+  // CSS-sized to fit the screen). Never assume rect.top === 0.
   const r = canvas.getBoundingClientRect();
-  return [e.clientX - r.left, e.clientY - r.top];
+  return [(e.clientX - r.left) * (W / r.width), (e.clientY - r.top) * (H / r.height)];
 }
 canvas.addEventListener("pointerdown", e => {
   if (pointerId !== null) return;

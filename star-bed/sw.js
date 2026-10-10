@@ -2,7 +2,7 @@
    Strategy: navigations (page loads) are network-first with a cache
    fallback, so updated game code reaches players on their next reload;
    same-origin assets are cache-first. */
-const CACHE = "star-bed-v2";
+const CACHE = "star-bed-v3";
 const ASSETS = ["./", "./index.html"];
 
 self.addEventListener("install", e => {
