@@ -17,11 +17,11 @@ padding:7px 10px;font-size:.8rem;cursor:pointer;font-family:inherit}
 font-weight:bold;font-size:.85rem;cursor:pointer;font-family:inherit}
 .caprow{font-size:18px;min-height:22px;color:var(--muted);letter-spacing:2px;margin:2px 0}
 #boardWrap{position:relative;width:100%;}
-#board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;
+#board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:100%;aspect-ratio:1;
 border:4px solid #5c4a3a;border-radius:4px;touch-action:manipulation}
-.sq{position:relative;display:flex;align-items:center;justify-content:center;user-select:none;cursor:pointer}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;user-select:none;cursor:pointer;container-type:size;min-width:0;min-height:0}
 .sq.light{background:var(--light)} .sq.dark{background:var(--dark)}
-.pc{font-size:min(10.5vw,50px);line-height:1;pointer-events:none;
+.pc{font-size:min(10.5vw,50px);font-size:58cqw;line-height:1;pointer-events:none;
  display:flex;align-items:center;justify-content:center;width:100%;height:100%}
 .w .pc{color:#fefefe;-webkit-text-stroke:2.2px #1d1d1f;
  background:radial-gradient(circle,rgba(255,255,255,.34) 55%,rgba(255,255,255,0) 74%);
