@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vincent the Vampire — Color by Number</title>
+<style>
+  :root{
+    --c1:#1e2a5e; --c2:#f5d442; --c3:#e6d5f2; --c4:#d94f4f;
+    --c5:#7a3fa8; --c6:#3a3a3f; --c7:#ffffff; --c8:#e8862e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Comic Sans MS','Segoe UI',system-ui,sans-serif;
+    background:#2b1e3e; color:#f4eads; color:#f4eadd;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:14px;
+  }
+  h1{font-size:clamp(1.3rem,4vw,2.2rem); color:#ffd76e; text-shadow:2px 2px 0 #6b2d00; margin-bottom:2px}
+  .sub{font-size:clamp(.8rem,2.5vw,1rem); margin-bottom:8px; color:#e8d9ff}
+  .hud{display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap;justify-content:center}
+  .progress{background:#4a3663;border-radius:999px;padding:6px 18px;font-weight:bold;color:#fff}
+  button.reset{
+    background:#d94f4f;color:#fff;border:none;border-radius:999px;padding:8px 20px;
+    font-size:1rem;font-weight:bold;cursor:pointer;box-shadow:0 3px 0 #8f2f2f;
+  }
+  button.reset:active{transform:translateY(2px);box-shadow:none}
+  .board{background:#fff;border-radius:14px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:860px;width:100%}
+  svg{width:100%;height:auto;display:block;border-radius:8px;touch-action:manipulation}
+  .region{fill:#ffffff;stroke:#17181c;stroke-width:3;cursor:pointer;transition:fill .15s}
+  .region:hover{filter:brightness(96%)}
+  .region.done{cursor:default}
+  .region.done:hover{filter:none}
+  .nlabel{
+    font-family:Arial,sans-serif;font-weight:bold;font-size:15px;fill:#111;
+    pointer-events:none;text-anchor:middle;dominant-baseline:middle;user-select:none;
+    transition:opacity .2s;
+  }
+  .nlabel.small{font-size:11px}
+  .keybar{
+    background:#fff;border-radius:14px;margin-top:12px;padding:10px 14px;max-width:860px;width:100%;
+    display:flex;gap:10px;justify-content:center;flex-wrap:wrap;box-shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+  .key{display:flex;flex-direction:column;align-items:center;font-size:.72rem;color:#222;font-weight:bold;width:64px}
+  .key .swatch{
+    width:44px;height:44px;border-radius:10px;border:3px solid #17181c;display:flex;
+    align-items:center;justify-content:center;font-size:1.1rem;color:#fff;margin-bottom:4px;
+  }
+  .key .swatch.dark{color:#fff}.key .swatch.light{color:#111}
+  .win{
+    position:fixed;inset:0;background:rgba(20,10,35,.85);display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:50;text-align:center;padding:20px;
+  }
+  .win.show{display:flex}
+  .win h2{font-size:clamp(1.6rem,6vw,3rem);color:#ffd76e;text-shadow:3px 3px 0 #6b2d00}
+  .win p{color:#fff;font-size:1.1rem}
+</style>
+</head>
+<body>
+<h1>🧛 Vincent the Vampire</h1>
+<div class="sub">Color by Number — click a numbered area and it fills with the right color!</div>
+<div class="hud">
+  <div class="progress" id="progress">0 / 0 colored</div>
+  <button class="reset" id="resetBtn">↺ Start Over</button>
+</div>
+
+<div class="board">
+<svg id="art" viewBox="0 0 860 1010" xmlns="http://www.w3.org/2000/svg" aria-label="Vincent the Vampire color by number scene">
+  <!-- SKY (1) -->
+  <rect class="region" data-n="1" id="sky" x="10" y="80" width="840" height="910"/>
+  <text class="nlabel" data-for="sky" x="60" y="132">1</text>
+
+  <!-- GROUND (6) -->
+  <path class="region" data-n="6" id="ground" d="M10 958 Q 200 938 430 946 Q 650 952 850 950 L850 990 L10 990 Z"/>
+  <text class="nlabel" data-for="ground" x="65" y="972">6</text>
+
+  <!-- MOON (2) -->
+  <circle class="region" data-n="2" id="moon" cx="718" cy="185" r="68"/>
+  <text class="nlabel" data-for="moon" x="718" y="188">2</text>
+
+  <!-- SPARKLES -->
+  <path class="region" data-n="1" id="sp1" d="M180 104 Q183 115 194 118 Q183 121 180 132 Q177 121 166 118 Q177 115 180 104 Z"/>
+  <path class="region" data-n="2" id="sp2" d="M135 158 Q138 169 149 172 Q138 175 135 186 Q132 175 121 172 Q132 169 135 158 Z"/>
+  <path class="region" data-n="1" id="sp3" d="M272 290 Q275 301 286 304 Q275 307 272 318 Q269 307 258 304 Q269 301 272 290 Z"/>
+  <path class="region" data-n="2" id="sp4" d="M575 128 Q578 139 589 142 Q578 145 575 156 Q572 145 561 142 Q572 139 575 128 Z"/>
+  <path class="region" data-n="1" id="sp5" d="M75 625 Q78 636 89 639 Q78 642 75 653 Q72 642 61 639 Q72 636 75 625 Z"/>
+
+  <!-- BATS (5) -->
+  <g id="bat1">
+    <path class="region" data-n="5" id="bat1w" d="M298 168 Q318 132 345 154 Q372 132 392 168 Q370 156 353 170 L345 180 L337 170 Q320 156 298 168 Z"/>
+    <ellipse class="region" data-n="5" id="bat1b" cx="345" cy="162" rx="12" ry="17"/>
+    <text class="nlabel small" data-for="bat1b" x="345" y="164">5</text>
+  </g>
+  <g id="bat2">
+    <path class="region" data-n="5" id="bat2w" d="M548 273 Q568 237 595 259 Q622 237 642 273 Q620 261 603 275 L595 285 L587 275 Q570 261 548 273 Z"/>
+    <ellipse class="region" data-n="5" id="bat2b" cx="595" cy="267" rx="12" ry="17"/>
+    <text class="nlabel small" data-for="bat2b" x="595" y="269">5</text>
+  </g>
+
+  <!-- GHOST (7) -->
+  <path class="region" data-n="7" id="ghost" d="M85 558 L85 522 Q85 490 115 490 Q145 490 145 522 L145 558 L145 574 Q138 566 131 574 Q124 582 115 574 Q106 582 99 574 Q92 566 85 574 Z"/>
+  <circle cx="103" cy="520" r="4" fill="#17181c"/>
+  <circle cx="127" cy="520" r="4" fill="#17181c"/>
+  <ellipse cx="115" cy="537" rx="5" ry="7" fill="#17181c"/>
+  <text class="nlabel" data-for="ghost" x="115" y="556">7</text>
+
+  <!-- ===== VINCENT ===== -->
+  <!-- CAPE (4) -->
+  <path class="region" data-n="4" id="cape" d="M332 522 L362 505 L498 505 L528 522 Q590 700 602 942 L258 942 Q270 700 332 522 Z"/>
+  <text class="nlabel" data-for="cape" x="303" y="708">4</text>
+  <text class="nlabel" data-for="cape2" x="557" y="708">4</text>
+
+  <!-- CAPE COLLAR TRIANGLES (4) -->
+  <path class="region" data-n="4" id="collarL" d="M430 502 L342 436 L328 522 Z"/>
+  <path class="region" data-n="4" id="collarR" d="M430 502 L518 436 L532 522 Z"/>
+
+  <!-- ARMS (4) -->
+  <rect class="region" data-n="4" id="armL" x="336" y="528" width="58" height="180" rx="29" transform="rotate(30 365 530)"/>
+  <rect class="region" data-n="4" id="armR" x="466" y="528" width="58" height="180" rx="29" transform="rotate(-30 495 530)"/>
+
+  <!-- HANDS (3) -->
+  <circle class="region" data-n="3" id="handL" cx="276" cy="692" r="26"/>
+  <text class="nlabel" data-for="handL" x="276" y="695">3</text>
+  <circle class="region" data-n="3" id="handR" cx="584" cy="692" r="26"/>
+  <text class="nlabel" data-for="handR" x="584" y="695">3</text>
+
+  <!-- TORSO (6) -->
+  <rect class="region" data-n="6" id="torso" x="340" y="495" width="180" height="322" rx="42"/>
+  <text class="nlabel" data-for="torso" x="430" y="690">6</text>
+
+  <!-- BOW TIE + VEST (7) -->
+  <path class="region" data-n="7" id="bowL" d="M428 531 L388 512 L388 550 Z"/>
+  <path class="region" data-n="7" id="bowR" d="M432 531 L472 512 L472 550 Z"/>
+  <circle class="region" data-n="7" id="bowKnot" cx="430" cy="531" r="9"/>
+  <path class="region" data-n="7" id="vest" d="M402 552 L458 552 L430 598 Z"/>
+  <text class="nlabel small" data-for="vest" x="430" y="578">7</text>
+
+  <!-- EARS (6) -->
+  <path class="region" data-n="6" id="earL" d="M348 318 L302 286 L340 368 Z"/>
+  <path class="region" data-n="6" id="earR" d="M512 318 L558 286 L520 368 Z"/>
+
+  <!-- HEAD (6) -->
+  <circle class="region" data-n="6" id="head" cx="430" cy="345" r="85"/>
+  <text class="nlabel" data-for="head" x="430" y="282">6</text>
+  <!-- hairline (decorative) -->
+  <path d="M352 330 Q372 296 402 312 Q418 322 430 308 Q442 322 458 312 Q488 296 508 330" fill="none" stroke="#17181c" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- FACE / SKIN (3) -->
+  <path class="region" data-n="3" id="face" d="M356 352 Q430 330 504 352 Q508 424 430 428 Q352 424 356 352 Z"/>
+  <text class="nlabel" data-for="face" x="382" y="398">3</text>
+
+  <!-- EYES (decorative) -->
+  <circle cx="398" cy="352" r="17" fill="#fff" stroke="#17181c" stroke-width="3"/>
+  <circle cx="398" cy="352" r="7" fill="#17181c"/>
+  <circle cx="462" cy="352" r="17" fill="#fff" stroke="#17181c" stroke-width="3"/>
+  <circle cx="462" cy="352" r="7" fill="#17181c"/>
+  <path d="M424 378 Q430 384 436 378" fill="none" stroke="#17181c" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- SMILE + FANGS -->
+  <path d="M392 402 Q430 430 468 402" fill="none" stroke="#17181c" stroke-width="3.5" stroke-linecap="round"/>
+  <path class="region" data-n="7" id="fangL" d="M404 412 L412 432 L422 414 Z"/>
+  <path class="region" data-n="7" id="fangR" d="M438 414 L448 432 L456 412 Z"/>
+
+  <!-- LEGS (6) -->
+  <rect class="region" data-n="6" id="legL" x="375" y="817" width="46" height="110"/>
+  <text class="nlabel" data-for="legL" x="398" y="878">6</text>
+  <rect class="region" data-n="6" id="legR" x="439" y="817" width="46" height="110"/>
+  <text class="nlabel" data-for="legR" x="462" y="878">6</text>
+
+  <!-- FEET (6) -->
+  <ellipse class="region" data-n="6" id="footL" cx="390" cy="935" rx="48" ry="19"/>
+  <text class="nlabel small" data-for="footL" x="390" y="938">6</text>
+  <ellipse class="region" data-n="6" id="footR" cx="470" cy="935" rx="48" ry="19"/>
+  <text class="nlabel small" data-for="footR" x="470" y="938">6</text>
+
+  <!-- ===== CASTLE ===== -->
+  <!-- towers (6) -->
+  <rect class="region" data-n="6" id="towerL" x="640" y="632" width="46" height="358"/>
+  <rect class="region" data-n="6" id="towerR" x="788" y="632" width="46" height="358"/>
+  <!-- tower crenellations (6) -->
+  <rect class="region" data-n="6" id="crenL1" x="640" y="616" width="13" height="18"/>
+  <rect class="region" data-n="6" id="crenL2" x="657" y="616" width="13" height="18"/>
+  <rect class="region" data-n="6" id="crenL3" x="674" y="616" width="13" height="18"/>
+  <rect class="region" data-n="6" id="crenR1" x="788" y="616" width="13" height="18"/>
+  <rect class="region" data-n="6" id="crenR2" x="805" y="616" width="13" height="18"/>
+  <rect class="region" data-n="6" id="crenR3" x="822" y="616" width="13" height="18"/>
+  <!-- wall (6) -->
+  <rect class="region" data-n="6" id="wall" x="672" y="732" width="130" height="258"/>
+  <text class="nlabel" data-for="wall" x="737" y="762">6</text>
+  <!-- wall crenellations (6) -->
+  <rect class="region" data-n="6" id="wcren1" x="676" y="716" width="20" height="16"/>
+  <rect class="region" data-n="6" id="wcren2" x="704" y="716" width="20" height="16"/>
+  <rect class="region" data-n="6" id="wcren3" x="732" y="716" width="20" height="16"/>
+  <rect class="region" data-n="6" id="wcren4" x="760" y="716" width="20" height="16"/>
+  <!-- windows (2) -->
+  <rect class="region" data-n="2" id="winL" x="700" y="798" width="21" height="28"/>
+  <text class="nlabel small" data-for="winL" x="710" y="813">2</text>
+  <rect class="region" data-n="2" id="winR" x="753" y="798" width="21" height="28"/>
+  <text class="nlabel small" data-for="winR" x="763" y="813">2</text>
+  <!-- gate (6) -->
+  <path class="region" data-n="6" id="gate" d="M714 990 L714 942 Q737 916 760 942 L760 990 Z"/>
+
+  <!-- ===== PUMPKINS (8) ===== -->
+  <g id="pumpL">
+    <ellipse class="region" data-n="8" id="pumpLb" cx="160" cy="902" rx="54" ry="46"/>
+    <rect x="154" y="850" width="12" height="12" rx="3" fill="#17181c"/>
+    <path d="M138 896 L150 890 L150 902 Z" fill="#17181c"/>
+    <path d="M182 896 L170 890 L170 902 Z" fill="#17181c"/>
+    <path d="M136 916 Q160 936 184 916" fill="none" stroke="#17181c" stroke-width="3.5" stroke-linecap="round"/>
+    <text class="nlabel" data-for="pumpLb" x="160" y="890">8</text>
+  </g>
+  <g id="pumpR">
+    <ellipse class="region" data-n="8" id="pumpRb" cx="748" cy="908" rx="42" ry="37"/>
+    <rect x="743" y="866" width="10" height="10" rx="3" fill="#17181c"/>
+    <path d="M731 903 L741 898 L741 908 Z" fill="#17181c"/>
+    <path d="M765 903 L755 898 L755 908 Z" fill="#17181c"/>
+    <path d="M730 920 Q748 936 766 920" fill="none" stroke="#17181c" stroke-width="3" stroke-linecap="round"/>
+    <text class="nlabel small" data-for="pumpRb" x="748" y="897">8</text>
+  </g>
+</svg>
+</div>
+
+<div class="keybar" id="keybar"></div>
+
+<div class="win" id="winOverlay">
+  <h2>🎃 Happy Halloween!</h2>
+  <p>You finished Vincent the Vampire — every space is colored!</p>
+  <button class="reset" onclick="resetGame()">Play Again</button>
+</div>
+
+<script>
+const COLORS = {
+  "1":{c:"#1e2a5e",name:"Night"},
+  "2":{c:"#f5d442",name:"Moon"},
+  "3":{c:"#e6d5f2",name:"Skin"},
+  "4":{c:"#d94f4f",name:"Cape"},
+  "5":{c:"#7a3fa8",name:"Bats"},
+  "6":{c:"#3a3a3f",name:"Suit"},
+  "7":{c:"#ffffff",name:"White"},
+  "8":{c:"#e8862e",name:"Pumpkin"},
+};
+const regions = Array.from(document.querySelectorAll('.region'));
+const total = regions.length;
+const progressEl = document.getElementById('progress');
+
+// build the key bar
+const keybar = document.getElementById('keybar');
+for (const [n,v] of Object.entries(COLORS)){
+  const dark = ["1","5","6"].includes(n);
+  const el = document.createElement('div');
+  el.className='key';
+  el.innerHTML = `<div class="swatch ${dark?'dark':'light'}" style="background:${v.c};${n==='7'?'border-color:#999;':''}"><span style="${dark?'':'color:#333'}">${n}</span></div>${v.name}`;
+  keybar.appendChild(el);
+}
+
+function filledCount(){
+  return regions.filter(r=>r.classList.contains('done')).length;
+}
+function updateProgress(){
+  const f = filledCount();
+  progressEl.textContent = `${f} / ${total} colored`;
+  if (f === total){
+    setTimeout(()=>document.getElementById('winOverlay').classList.add('show'), 450);
+  }
+}
+
+regions.forEach(r=>{
+  r.addEventListener('click', ()=>{
+    if (r.classList.contains('done')) return;
+    const n = r.dataset.n;
+    r.style.fill = COLORS[n].c;
+    r.classList.add('done');
+    // hide its number label(s)
+    document.querySelectorAll(`.nlabel[data-for="${r.id}"]`).forEach(l=>l.style.opacity='0');
+    updateProgress();
+  });
+});
+
+function resetGame(){
+  regions.forEach(r=>{
+    r.style.fill='#ffffff';
+    r.classList.remove('done');
+  });
+  document.querySelectorAll('.nlabel').forEach(l=>l.style.opacity='1');
+  document.getElementById('winOverlay').classList.remove('show');
+  updateProgress();
+}
+document.getElementById('resetBtn').addEventListener('click', resetGame);
+updateProgress();
+</script>
+</body>
+</html>
